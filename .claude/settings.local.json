@@ -6,7 +6,20 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git branch:*)",
-      "Bash(git remote:*)"
+      "Bash(git remote:*)",
+      "Bash(git checkout:*)",
+      "Bash(bun create:*)",
+      "Read(//private/tmp/**)",
+      "Bash(rm -rf quotecraft-temp)",
+      "Bash(printf \"n\\\\nn\\\\n\")",
+      "Bash(yes \"n\")",
+      "Bash(rsync:*)",
+      "Bash(bun add:*)",
+      "Bash(yes \"\")",
+      "Bash(bunx shadcn@latest init -d)",
+      "Bash(git rebase:*)",
+      "Bash(GIT_EDITOR=true git rebase --continue 2>&1)",
+      "Bash(GIT_EDITOR=true git rebase --continue)"
     ]
   }
 }
