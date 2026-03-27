@@ -11,7 +11,7 @@ CREATE TABLE companies (
   phone text,
   license_number text,
   logo_url text,
-  zip_code text NOT NULL,
+  zip_code text,
   default_labor_margin decimal DEFAULT 20.0,
   default_material_margin decimal DEFAULT 30.0,
   default_payment_terms text DEFAULT '50% due upon acceptance, balance due upon completion',
@@ -159,6 +159,11 @@ CREATE POLICY "Admins can update their own company"
   ON companies FOR UPDATE
   USING (id = get_user_company_id());
 
+-- Allow authenticated users to create a company (needed during signup)
+CREATE POLICY "Authenticated users can create a company"
+  ON companies FOR INSERT
+  WITH CHECK (auth.uid() IS NOT NULL);
+
 -- USERS
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 
@@ -169,6 +174,11 @@ CREATE POLICY "Users can view users in their company"
 CREATE POLICY "Users can update their own profile"
   ON users FOR UPDATE
   USING (id = auth.uid());
+
+-- Allow new users to insert their own profile row (needed during signup)
+CREATE POLICY "Users can insert their own profile"
+  ON users FOR INSERT
+  WITH CHECK (id = auth.uid());
 
 -- QUOTES
 ALTER TABLE quotes ENABLE ROW LEVEL SECURITY;

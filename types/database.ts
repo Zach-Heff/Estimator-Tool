@@ -5,7 +5,7 @@ export interface Company {
   phone: string | null;
   license_number: string | null;
   logo_url: string | null;
-  zip_code: string;
+  zip_code: string | null;
   default_labor_margin: number;
   default_material_margin: number;
   default_payment_terms: string;
