@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { Quote, ChatMessage } from "@/types/database";
+import QuoteTable from "@/components/quote-table";
+import type { Quote, ChatMessage, QuoteLineItem } from "@/types/database";
 
 // ─── Client Info Section ────────────────────────────────────────────────────
 // Collapsible section at the top for entering client/job details.
@@ -207,13 +208,19 @@ function ChatInterface({
   streamingContent,
   isStreaming,
   readyToGenerate,
+  isGenerating,
+  hasLineItems,
   onSendMessage,
+  onGenerateQuote,
 }: {
   messages: ChatMessage[];
   streamingContent: string;
   isStreaming: boolean;
   readyToGenerate: boolean;
+  isGenerating: boolean;
+  hasLineItems: boolean;
   onSendMessage: (msg: string) => void;
+  onGenerateQuote: () => void;
 }) {
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -259,18 +266,30 @@ function ChatInterface({
         </div>
       </div>
 
-      {/* "Generate Quote" button appears when the AI signals it's ready */}
-      {readyToGenerate && (
+      {/* "Generate Quote" button appears when the AI signals it's ready
+          and we haven't already generated line items */}
+      {readyToGenerate && !hasLineItems && (
         <div className="border-t bg-green-50 p-4">
           <Button
             size="lg"
             className="w-full bg-green-600 text-lg font-semibold text-white hover:bg-green-700"
-            onClick={() =>
-              alert("Quote generation coming in the next session.")
-            }
+            onClick={onGenerateQuote}
+            disabled={isGenerating}
           >
-            Generate Quote
+            {isGenerating ? (
+              <span className="flex items-center gap-2">
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                Generating your quote...
+              </span>
+            ) : (
+              "Generate Quote"
+            )}
           </Button>
+          {isGenerating && (
+            <p className="mt-2 text-center text-sm text-muted-foreground">
+              This uses a more powerful AI model and may take 10–30 seconds.
+            </p>
+          )}
         </div>
       )}
 
@@ -287,9 +306,9 @@ function ChatInterface({
               }
             }}
             placeholder="Type your reply..."
-            disabled={isStreaming}
+            disabled={isStreaming || isGenerating}
           />
-          <Button onClick={handleSend} disabled={isStreaming || !input.trim()}>
+          <Button onClick={handleSend} disabled={isStreaming || isGenerating || !input.trim()}>
             Send
           </Button>
         </div>
@@ -307,17 +326,26 @@ export default function QuoteEditPage() {
 
   const [quote, setQuote] = useState<Quote | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [lineItems, setLineItems] = useState<QuoteLineItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
   const [readyToGenerate, setReadyToGenerate] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [subtotal, setSubtotal] = useState(0);
+  // Track the approved state — if review_completed_at is set, the quote is approved
+  const [isApproved, setIsApproved] = useState(false);
+
+  // Refs for scrolling to sections
+  const chatRef = useRef<HTMLDivElement>(null);
+  const tableRef = useRef<HTMLDivElement>(null);
 
   // Track whether we're in Phase A (scope input) or Phase B (chat)
-  // If there are already chat messages, we skip straight to Phase B
   const hasStartedChat = messages.length > 0;
+  const hasLineItems = lineItems.length > 0;
 
-  // Load the quote and any existing chat messages on mount
+  // Load the quote, chat messages, and any existing line items on mount
   useEffect(() => {
     async function loadQuote() {
       const {
@@ -342,6 +370,7 @@ export default function QuoteEditPage() {
       }
 
       setQuote(quoteData);
+      setIsApproved(!!quoteData.review_completed_at);
 
       // Load existing chat messages (supports resuming after browser close)
       const { data: chatData } = await supabase
@@ -359,6 +388,20 @@ export default function QuoteEditPage() {
         if (lastAssistantMsg?.content.includes("[READY_TO_GENERATE]")) {
           setReadyToGenerate(true);
         }
+      }
+
+      // Load existing line items (supports resuming after quote was already generated)
+      const { data: itemsData } = await supabase
+        .from("quote_line_items")
+        .select("*")
+        .eq("quote_id", quoteId)
+        .order("sort_order", { ascending: true });
+
+      if (itemsData && itemsData.length > 0) {
+        setLineItems(itemsData);
+        setSubtotal(
+          itemsData.reduce((sum, item) => sum + item.billable_price, 0)
+        );
       }
 
       setLoading(false);
@@ -475,6 +518,75 @@ export default function QuoteEditPage() {
     await sendMessage(scope);
   }
 
+  // ─── Quote Generation ─────────────────────────────────────────────────────
+  // Called when the electrician clicks "Generate Quote" after the clarification chat
+  async function handleGenerateQuote() {
+    setIsGenerating(true);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/generate-quote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ quote_id: quoteId }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.error ||
+            "Quote generation failed. Your conversation is saved — please try again."
+        );
+      }
+
+      const data = await response.json();
+      setLineItems(data.line_items);
+      setSubtotal(data.subtotal);
+
+      // Scroll down to the newly generated table after a brief delay
+      setTimeout(() => {
+        tableRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, 300);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Quote generation failed. Your conversation is saved — please try again."
+      );
+    } finally {
+      setIsGenerating(false);
+    }
+  }
+
+  // ─── Approve Quote ────────────────────────────────────────────────────────
+  // Sets review_completed_at — the mandatory review step before export
+  async function handleApprove() {
+    if (lineItems.length === 0) {
+      setError("Cannot approve an empty quote. Add at least one line item.");
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const { error: updateError } = await supabase
+      .from("quotes")
+      .update({ review_completed_at: now })
+      .eq("id", quoteId);
+
+    if (updateError) {
+      setError("Failed to approve quote. Please try again.");
+      return;
+    }
+
+    setIsApproved(true);
+  }
+
+  // ─── Totals callback from QuoteTable ──────────────────────────────────────
+  const handleTotalsChange = useCallback((newSubtotal: number) => {
+    setSubtotal(newSubtotal);
+  }, []);
+
+  // ─── Loading / Error States ───────────────────────────────────────────────
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-zinc-50">
@@ -506,12 +618,14 @@ export default function QuoteEditPage() {
 
   return (
     <div className="min-h-screen bg-zinc-50 px-4 py-8">
-      <div className="mx-auto max-w-3xl space-y-6">
+      <div className="mx-auto max-w-5xl space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold">{quote.quote_number}</h1>
-            <p className="text-sm text-muted-foreground">Draft</p>
+            <p className="text-sm text-muted-foreground">
+              {isApproved ? "Approved" : "Draft"}
+            </p>
           </div>
           <Button
             variant="outline"
@@ -525,16 +639,85 @@ export default function QuoteEditPage() {
         <ClientInfoSection quote={quote} onFieldSave={handleFieldSave} />
 
         {/* Section 2: Scope Input (Phase A) or Chat (Phase B) */}
-        {!hasStartedChat ? (
-          <ScopeInput onSubmit={handleScopeSubmit} disabled={isStreaming} />
-        ) : (
-          <ChatInterface
-            messages={messages}
-            streamingContent={streamingContent}
-            isStreaming={isStreaming}
-            readyToGenerate={readyToGenerate}
-            onSendMessage={sendMessage}
-          />
+        <div ref={chatRef}>
+          {!hasStartedChat ? (
+            <ScopeInput onSubmit={handleScopeSubmit} disabled={isStreaming} />
+          ) : (
+            <ChatInterface
+              messages={messages}
+              streamingContent={streamingContent}
+              isStreaming={isStreaming}
+              readyToGenerate={readyToGenerate}
+              isGenerating={isGenerating}
+              hasLineItems={hasLineItems}
+              onSendMessage={sendMessage}
+              onGenerateQuote={handleGenerateQuote}
+            />
+          )}
+        </div>
+
+        {/* Section 3: Editable Quote Table — appears after quote generation */}
+        {hasLineItems && (
+          <div ref={tableRef}>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Quote Line Items</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <QuoteTable
+                  quoteId={quoteId}
+                  initialItems={lineItems}
+                  initialSubtotal={subtotal}
+                  defaultLaborMargin={quote.labor_margin_default ?? 20}
+                  defaultMaterialMargin={quote.material_margin_default ?? 20}
+                  onTotalsChange={handleTotalsChange}
+                />
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Section 4: Review & Export — appears below the table */}
+        {hasLineItems && (
+          <Card>
+            <CardContent className="pt-6">
+              {isApproved ? (
+                // Approved state — show confirmation and export placeholder
+                <div className="space-y-4 text-center">
+                  <div className="rounded-lg bg-green-50 p-4">
+                    <p className="text-lg font-semibold text-green-800">
+                      Quote Approved
+                    </p>
+                    <p className="mt-1 text-sm text-green-700">
+                      You can now export this quote as a PDF.
+                    </p>
+                  </div>
+                  <Button disabled className="w-full" size="lg">
+                    Download PDF — coming soon
+                  </Button>
+                </div>
+              ) : (
+                // Pre-approval state — review actions
+                <div className="flex gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={() =>
+                      chatRef.current?.scrollIntoView({ behavior: "smooth" })
+                    }
+                  >
+                    Back to Chat
+                  </Button>
+                  <Button
+                    className="flex-1 bg-green-600 text-white hover:bg-green-700"
+                    size="lg"
+                    onClick={handleApprove}
+                  >
+                    Approve &amp; Continue
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         )}
 
         {/* Error banner */}
