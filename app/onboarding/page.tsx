@@ -509,7 +509,11 @@ export default function OnboardingPage() {
           .from("company-logos")
           .upload(filePath, companyDetails.logoFile, { upsert: true });
 
-        if (!uploadError) {
+        if (uploadError) {
+          // Logo upload failed — not critical, continue without it.
+          // The user can re-upload later in settings.
+          console.warn("Logo upload failed:", uploadError.message);
+        } else {
           const {
             data: { publicUrl },
           } = supabase.storage.from("company-logos").getPublicUrl(filePath);

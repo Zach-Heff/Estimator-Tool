@@ -33,8 +33,9 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Public routes that don't require authentication
-  const publicPaths = ["/login", "/signup"];
+  // Public routes that don't require authentication.
+  // Includes the signup API route so the form submission works before the user is logged in.
+  const publicPaths = ["/login", "/signup", "/api/auth"];
   const isPublicPath = publicPaths.some((path) =>
     request.nextUrl.pathname.startsWith(path)
   );
