@@ -285,11 +285,6 @@ function ChatInterface({
               "Generate Quote"
             )}
           </Button>
-          {isGenerating && (
-            <p className="mt-2 text-center text-sm text-muted-foreground">
-              This uses a more powerful AI model and may take 10–30 seconds.
-            </p>
-          )}
         </div>
       )}
 

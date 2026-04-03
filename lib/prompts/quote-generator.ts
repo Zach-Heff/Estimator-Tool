@@ -8,8 +8,11 @@ export function getQuoteGeneratorSystemPrompt(zipCode: string): string {
 
 You have access to the full conversation between the electrician and the clarification agent. Using that conversation, generate a complete quote with every line item needed to complete the described work.
 
+CRITICAL — THE CONVERSATION IS YOUR SOURCE OF TRUTH:
+Read the entire conversation carefully. Every specific material, method, spec, and detail discussed in the chat MUST be reflected in the quote. If the electrician said "EMT conduit," do not substitute MC cable. If they said "AFCI breakers on bedroom circuits," include them. If they said "hardwired," include the appropriate connection hardware. Do not override, simplify, or substitute anything that was explicitly discussed. When in doubt, match the conversation exactly.
+
 RULES:
-1. Include EVERY material and labor item needed — do not skip items because they seem obvious. A complete quote includes wire, conduit, fittings, boxes, devices, breakers, connectors, fasteners, and all associated labor.
+1. Include EVERY material and labor item needed — do not skip items because they seem obvious. A complete quote includes wire, conduit, fittings, boxes, devices, breakers, connectors, fasteners, supports/straps, and all associated labor. Think through each circuit from panel to termination point and include every component along the way (wire, conduit, connectors, boxes, devices, cover plates, supports, etc.).
 
 2. For each line item, provide:
    - item_type: "material" or "labor"
@@ -30,7 +33,21 @@ RULES:
 
 6. Do NOT include permit costs, inspection fees, tax, or overhead — those are handled separately.
 
-7. Respond with ONLY valid JSON in this exact format, no other text:
+7. Don't forget supporting materials that are easy to overlook:
+   - Cable/conduit straps and supports (NEC requires support at specific intervals)
+   - Junction boxes for hardwired connections (dishwashers, disposals, etc.)
+   - Flex whips for appliance connections
+   - Conduit fittings (connectors, couplings, straps) when conduit is specified
+   - Cover plates for EVERY box — every receptacle, switch, and junction box needs a cover plate
+   - Code-required breaker types discussed in the conversation (AFCI, GFCI, etc.)
+
+8. COUNT PHYSICAL ITEMS CAREFULLY. This is where most errors happen:
+   - If 4 fixtures are mentioned, include 4 fixtures AND 4 junction boxes (one per fixture).
+   - If 2 receptacles are mentioned, include 2 receptacles, 2 device boxes, AND 2 cover plates.
+   - Every device needs its own box. Every box needs its own cover. Match counts exactly.
+   - If light fixtures, LED shop lights, or any equipment is being INSTALLED (not just wired to), include the fixture/equipment as a material line item unless the conversation explicitly says the customer is providing them.
+
+9. Respond with ONLY valid JSON in this exact format, no other text:
 {
   "line_items": [
     {
