@@ -1,14 +1,13 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@/lib/supabase/server";
 import { getQuoteGeneratorSystemPrompt } from "@/lib/prompts/quote-generator";
+import { getQuoteReviewerSystemPrompt } from "@/lib/prompts/quote-reviewer";
 import { NextRequest } from "next/server";
 
-// Claude Opus pricing (per token) as of 2025.
-// Opus is more expensive than Sonnet — we use it here because quote generation
-// requires stronger reasoning to produce accurate, complete bills of materials.
-const OPUS_INPUT_PRICE_PER_TOKEN = 15 / 1_000_000; // $15 per 1M input tokens
-const OPUS_OUTPUT_PRICE_PER_TOKEN = 75 / 1_000_000; // $75 per 1M output tokens
-const MODEL = "claude-opus-4-20250514";
+// Claude Sonnet pricing (per token) as of 2025.
+const SONNET_INPUT_PRICE_PER_TOKEN = 3 / 1_000_000; // $3 per 1M input tokens
+const SONNET_OUTPUT_PRICE_PER_TOKEN = 15 / 1_000_000; // $15 per 1M output tokens
+const MODEL = "claude-sonnet-4-20250514";
 
 // Shape of each line item in Claude's JSON response
 interface AILineItem {
@@ -18,6 +17,17 @@ interface AILineItem {
   unit: string;
   unit_cost: number;
   confidence: "high" | "medium" | "low";
+}
+
+// Shape of a correction from the review agent
+interface ReviewCorrection {
+  action: "update" | "add" | "remove";
+  line_item_index?: number;
+  field?: string;
+  old_value?: string | number;
+  new_value?: string | number;
+  line_item?: AILineItem;
+  reason: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -101,29 +111,28 @@ export async function POST(request: NextRequest) {
 
     // Build messages for Claude from conversation history.
     // Strip the [READY_TO_GENERATE] tag — it was a UI signal, not part of the real conversation.
-    const messages: Anthropic.MessageParam[] = chatHistory.map((msg) => ({
+    const chatMessages: Anthropic.MessageParam[] = chatHistory.map((msg) => ({
       role: msg.role as "user" | "assistant",
       content: msg.content.replace("[READY_TO_GENERATE]", "").trim(),
     }));
 
-    // Call Claude Opus for quote generation
     const anthropic = new Anthropic({ apiKey });
 
-    let aiResponse: string;
-    let inputTokens: number;
-    let outputTokens: number;
+    // Track total token usage across both generation and review calls
+    let totalInputTokens = 0;
+    let totalOutputTokens = 0;
 
-    // Attempt to generate the quote — retry once if JSON parsing fails
+    // ─── STEP 1: Generate the quote ──────────────────────────────────────────
+    let lineItems: AILineItem[] | null = null;
+    let aiResponse: string = "";
+
     for (let attempt = 0; attempt < 2; attempt++) {
       const messagesToSend =
         attempt === 0
-          ? messages
+          ? chatMessages
           : [
-              ...messages,
-              {
-                role: "assistant" as const,
-                content: aiResponse!,
-              },
+              ...chatMessages,
+              { role: "assistant" as const, content: aiResponse },
               {
                 role: "user" as const,
                 content:
@@ -138,123 +147,33 @@ export async function POST(request: NextRequest) {
         messages: messagesToSend,
       });
 
-      // Extract the text content from Claude's response
       aiResponse = result.content
         .filter((block): block is Anthropic.TextBlock => block.type === "text")
         .map((block) => block.text)
         .join("");
 
-      inputTokens = result.usage.input_tokens;
-      outputTokens = result.usage.output_tokens;
+      totalInputTokens += result.usage.input_tokens;
+      totalOutputTokens += result.usage.output_tokens;
 
-      // Try to parse the JSON
       try {
         const parsed = JSON.parse(aiResponse);
         if (!parsed.line_items || !Array.isArray(parsed.line_items)) {
           throw new Error("Missing line_items array");
         }
 
-        // Validate each line item has required fields
         for (const item of parsed.line_items) {
           if (!item.item_type || !item.description || item.quantity == null || item.unit_cost == null) {
             throw new Error("Line item missing required fields");
           }
         }
 
-        // JSON is valid — process the line items
-        const lineItems: AILineItem[] = parsed.line_items;
-
-        // Build the database rows from the AI response
-        const lineItemRows = lineItems.map((item, index) => {
-          // Pick the right margin based on whether it's labor or material
-          const margin =
-            item.item_type === "labor" ? laborMargin : materialMargin;
-          // Billable price = cost * quantity with margin markup applied
-          const billablePrice =
-            item.unit_cost * item.quantity * (1 + margin / 100);
-
-          return {
-            quote_id,
-            item_type: item.item_type,
-            description: item.description,
-            quantity: item.quantity,
-            unit: item.unit,
-            unit_cost: item.unit_cost,
-            margin_percent: margin,
-            billable_price: Math.round(billablePrice * 100) / 100,
-            price_source: "ai_estimate",
-            confidence_flag: item.confidence,
-            sort_order: index + 1,
-            // Preserve the AI's original values so we can track edits for training data
-            ai_original_description: item.description,
-            ai_original_quantity: item.quantity,
-            ai_original_unit_cost: item.unit_cost,
-            was_edited: false,
-            was_added_manually: false,
-          };
-        });
-
-        // Insert all line items into the database
-        const { data: insertedItems, error: insertError } = await supabase
-          .from("quote_line_items")
-          .insert(lineItemRows)
-          .select();
-
-        if (insertError) {
-          console.error("Failed to insert line items:", insertError);
-          return Response.json(
-            { error: "Failed to save quote line items." },
-            { status: 500 }
-          );
-        }
-
-        // Calculate totals for the quote
-        const subtotal = lineItemRows.reduce(
-          (sum, item) => sum + item.billable_price,
-          0
-        );
-        const total = Math.round(subtotal * 100) / 100;
-
-        // Update the quote with generation metadata and totals
-        const estimatedCost =
-          inputTokens! * OPUS_INPUT_PRICE_PER_TOKEN +
-          outputTokens! * OPUS_OUTPUT_PRICE_PER_TOKEN;
-
-        await supabase
-          .from("quotes")
-          .update({
-            ai_model_used: MODEL,
-            total_tokens_used: inputTokens! + outputTokens!,
-            estimated_api_cost: estimatedCost,
-            subtotal: total,
-            total: total,
-          })
-          .eq("id", quote_id);
-
-        // Log the API usage (required by CLAUDE.md — every API call must be tracked)
-        await supabase.from("api_usage_log").insert({
-          company_id: profile.company_id,
-          quote_id,
-          user_id: user.id,
-          endpoint_type: "quote_generation",
-          model_used: MODEL,
-          input_tokens: inputTokens!,
-          output_tokens: outputTokens!,
-          estimated_cost_usd: estimatedCost,
-        });
-
-        return Response.json({
-          line_items: insertedItems,
-          subtotal: total,
-          total: total,
-        });
+        lineItems = parsed.line_items;
+        break;
       } catch (parseError) {
-        // First attempt failed to parse — retry
         if (attempt === 0) {
           console.warn("First JSON parse attempt failed, retrying:", parseError);
           continue;
         }
-        // Second attempt also failed — give up
         console.error("Quote generation JSON parse failed after retry:", parseError);
         return Response.json(
           { error: "Quote generation failed. Your conversation is saved — please try again." },
@@ -263,11 +182,169 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // TypeScript needs this even though the loop always returns
-    return Response.json(
-      { error: "Quote generation failed." },
-      { status: 500 }
-    );
+    if (!lineItems) {
+      return Response.json(
+        { error: "Quote generation failed." },
+        { status: 500 }
+      );
+    }
+
+    // ─── STEP 2: Review agent checks the quote against the conversation ─────
+    // A second AI call compares the generated line items to the chat to catch
+    // errors like wrong quantities, missing items, or material substitutions.
+    try {
+      const reviewResult = await anthropic.messages.create({
+        model: MODEL,
+        max_tokens: 4096,
+        system: getQuoteReviewerSystemPrompt(),
+        messages: [
+          {
+            role: "user",
+            content: `Here is the conversation between the electrician and the clarification agent:\n\n${chatHistory
+              .map((msg) => `${msg.role.toUpperCase()}: ${msg.content.replace("[READY_TO_GENERATE]", "").trim()}`)
+              .join("\n\n")}\n\n---\n\nHere are the generated line items to review:\n\n${JSON.stringify(lineItems, null, 2)}`,
+          },
+        ],
+      });
+
+      totalInputTokens += reviewResult.usage.input_tokens;
+      totalOutputTokens += reviewResult.usage.output_tokens;
+
+      const reviewResponse = reviewResult.content
+        .filter((block): block is Anthropic.TextBlock => block.type === "text")
+        .map((block) => block.text)
+        .join("");
+
+      const review = JSON.parse(reviewResponse);
+
+      // Apply corrections if the reviewer found issues
+      if (review.status === "corrections_needed" && Array.isArray(review.corrections)) {
+        console.log(`Review agent found ${review.corrections.length} correction(s)`);
+
+        // Process removals first (in reverse order to preserve indices),
+        // then updates, then additions
+        const removals = review.corrections
+          .filter((c: ReviewCorrection) => c.action === "remove")
+          .sort((a: ReviewCorrection, b: ReviewCorrection) => (b.line_item_index ?? 0) - (a.line_item_index ?? 0));
+
+        for (const correction of removals) {
+          if (correction.line_item_index != null && correction.line_item_index < lineItems.length) {
+            console.log(`Removing item ${correction.line_item_index}: ${correction.reason}`);
+            lineItems.splice(correction.line_item_index, 1);
+          }
+        }
+
+        // Apply updates
+        const updates = review.corrections.filter((c: ReviewCorrection) => c.action === "update");
+        for (const correction of updates) {
+          if (
+            correction.line_item_index != null &&
+            correction.line_item_index < lineItems.length &&
+            correction.field &&
+            correction.new_value != null
+          ) {
+            console.log(
+              `Updating item ${correction.line_item_index} ${correction.field}: ${correction.old_value} → ${correction.new_value} (${correction.reason})`
+            );
+            const item = lineItems[correction.line_item_index] as unknown as Record<string, unknown>;
+            item[correction.field] = correction.new_value;
+          }
+        }
+
+        // Apply additions
+        const additions = review.corrections.filter((c: ReviewCorrection) => c.action === "add");
+        for (const correction of additions) {
+          if (correction.line_item) {
+            console.log(`Adding item: ${correction.line_item.description} (${correction.reason})`);
+            lineItems.push(correction.line_item);
+          }
+        }
+      } else {
+        console.log("Review agent approved the quote — no corrections needed");
+      }
+    } catch (reviewError) {
+      // If the review step fails, we still have a valid quote from step 1.
+      // Log the error but don't block the user — a reviewed quote is better
+      // than no quote, but an unreviewed quote is better than an error.
+      console.error("Review agent failed (proceeding with unreviewed quote):", reviewError);
+    }
+
+    // ─── STEP 3: Save the final (reviewed) line items to the database ───────
+    const lineItemRows = lineItems.map((item, index) => {
+      const margin = item.item_type === "labor" ? laborMargin : materialMargin;
+      const billablePrice = item.unit_cost * item.quantity * (1 + margin / 100);
+
+      return {
+        quote_id,
+        item_type: item.item_type,
+        description: item.description,
+        quantity: item.quantity,
+        unit: item.unit,
+        unit_cost: item.unit_cost,
+        margin_percent: margin,
+        billable_price: Math.round(billablePrice * 100) / 100,
+        price_source: "ai_estimate",
+        confidence_flag: item.confidence,
+        sort_order: index + 1,
+        // Preserve the AI's original values so we can track edits for training data
+        ai_original_description: item.description,
+        ai_original_quantity: item.quantity,
+        ai_original_unit_cost: item.unit_cost,
+        was_edited: false,
+        was_added_manually: false,
+      };
+    });
+
+    const { data: insertedItems, error: insertError } = await supabase
+      .from("quote_line_items")
+      .insert(lineItemRows)
+      .select();
+
+    if (insertError) {
+      console.error("Failed to insert line items:", insertError);
+      return Response.json(
+        { error: "Failed to save quote line items." },
+        { status: 500 }
+      );
+    }
+
+    // Calculate totals
+    const subtotal = lineItemRows.reduce((sum, item) => sum + item.billable_price, 0);
+    const total = Math.round(subtotal * 100) / 100;
+
+    // Update the quote with generation metadata and totals
+    const estimatedCost =
+      totalInputTokens * SONNET_INPUT_PRICE_PER_TOKEN +
+      totalOutputTokens * SONNET_OUTPUT_PRICE_PER_TOKEN;
+
+    await supabase
+      .from("quotes")
+      .update({
+        ai_model_used: MODEL,
+        total_tokens_used: totalInputTokens + totalOutputTokens,
+        estimated_api_cost: estimatedCost,
+        subtotal: total,
+        total: total,
+      })
+      .eq("id", quote_id);
+
+    // Log the API usage (required by CLAUDE.md — every API call must be tracked)
+    await supabase.from("api_usage_log").insert({
+      company_id: profile.company_id,
+      quote_id,
+      user_id: user.id,
+      endpoint_type: "quote_generation",
+      model_used: MODEL,
+      input_tokens: totalInputTokens,
+      output_tokens: totalOutputTokens,
+      estimated_cost_usd: estimatedCost,
+    });
+
+    return Response.json({
+      line_items: insertedItems,
+      subtotal: total,
+      total: total,
+    });
   } catch (error) {
     console.error("Generate quote error:", error);
     return Response.json(

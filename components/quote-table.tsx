@@ -99,8 +99,8 @@ function QuoteRow({
         )}
       </td>
 
-      {/* Description — editable */}
-      <td className="px-3 py-2">
+      {/* Description — editable, wide enough to show full item names */}
+      <td className="px-3 py-2 min-w-[300px]">
         <div className="flex items-center gap-1">
           <Input
             value={description}
@@ -108,7 +108,7 @@ function QuoteRow({
               setDescription(e.target.value);
               debouncedSave({ description: e.target.value });
             }}
-            className="h-8 text-sm"
+            className="h-8 text-sm w-full"
           />
           {/* Low confidence warning icon */}
           {isLowConfidence && (
