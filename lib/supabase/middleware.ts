@@ -35,7 +35,7 @@ export async function updateSession(request: NextRequest) {
 
   // Public routes that don't require authentication.
   // Includes the signup API route so the form submission works before the user is logged in.
-  const publicPaths = ["/login", "/signup", "/api/auth"];
+  const publicPaths = ["/login", "/signup", "/api/auth", "/auth/callback", "/reset-password"];
   const isPublicPath = publicPaths.some((path) =>
     request.nextUrl.pathname.startsWith(path)
   );
