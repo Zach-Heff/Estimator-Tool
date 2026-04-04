@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import QuoteTable from "@/components/quote-table";
+import PdfPreviewModal from "@/components/pdf-preview-modal";
 import type { Quote, ChatMessage, QuoteLineItem } from "@/types/database";
 
 // ─── Client Info Section ────────────────────────────────────────────────────
@@ -331,6 +332,8 @@ export default function QuoteEditPage() {
   const [subtotal, setSubtotal] = useState(0);
   // Track the approved state — if review_completed_at is set, the quote is approved
   const [isApproved, setIsApproved] = useState(false);
+  // Controls the PDF preview modal visibility
+  const [pdfModalOpen, setPdfModalOpen] = useState(false);
 
   // Refs for scrolling to sections
   const chatRef = useRef<HTMLDivElement>(null);
@@ -687,9 +690,19 @@ export default function QuoteEditPage() {
                       You can now export this quote as a PDF.
                     </p>
                   </div>
-                  <Button disabled className="w-full" size="lg">
-                    Download PDF — coming soon
+                  <Button
+                    className="w-full"
+                    size="lg"
+                    onClick={() => setPdfModalOpen(true)}
+                  >
+                    Preview &amp; Download PDF
                   </Button>
+                  <PdfPreviewModal
+                    quoteId={quoteId}
+                    quoteNumber={quote.quote_number}
+                    open={pdfModalOpen}
+                    onOpenChange={setPdfModalOpen}
+                  />
                 </div>
               ) : (
                 // Pre-approval state — review actions

@@ -230,6 +230,7 @@ export type Database = {
           ai_original_quantity: number | null
           ai_original_unit_cost: number | null
           billable_price: number
+          category: string | null
           confidence_flag: string | null
           created_at: string | null
           description: string
@@ -250,6 +251,7 @@ export type Database = {
           ai_original_quantity?: number | null
           ai_original_unit_cost?: number | null
           billable_price: number
+          category?: string | null
           confidence_flag?: string | null
           created_at?: string | null
           description: string
@@ -270,6 +272,7 @@ export type Database = {
           ai_original_quantity?: number | null
           ai_original_unit_cost?: number | null
           billable_price?: number
+          category?: string | null
           confidence_flag?: string | null
           created_at?: string | null
           description?: string
