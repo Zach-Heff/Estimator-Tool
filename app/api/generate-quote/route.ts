@@ -12,6 +12,7 @@ const MODEL = "claude-sonnet-4-20250514";
 // Shape of each line item in Claude's JSON response
 interface AILineItem {
   item_type: "material" | "labor";
+  category?: string;
   description: string;
   quantity: number;
   unit: string;
@@ -277,6 +278,7 @@ export async function POST(request: NextRequest) {
       return {
         quote_id,
         item_type: item.item_type,
+        category: item.category || "General",
         description: item.description,
         quantity: item.quantity,
         unit: item.unit,

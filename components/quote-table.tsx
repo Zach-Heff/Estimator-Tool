@@ -31,6 +31,7 @@ function QuoteRow({
   onUpdate: (id: string, updates: Partial<QuoteLineItem>) => void;
   onDelete: (id: string) => void;
 }) {
+  const [category, setCategory] = useState(item.category || "General");
   const [description, setDescription] = useState(item.description);
   const [quantity, setQuantity] = useState(item.quantity.toString());
   const [unitCost, setUnitCost] = useState(item.unit_cost.toString());
@@ -97,6 +98,19 @@ function QuoteRow({
             AI Estimate
           </span>
         )}
+      </td>
+
+      {/* Category — editable, used to group items in the PDF */}
+      <td className="px-3 py-2 w-36">
+        <Input
+          value={category}
+          onChange={(e) => {
+            setCategory(e.target.value);
+            debouncedSave({ category: e.target.value });
+          }}
+          className="h-8 text-sm w-full"
+          placeholder="e.g., Panel Upgrade"
+        />
       </td>
 
       {/* Description — editable, wide enough to show full item names */}
@@ -324,6 +338,7 @@ export default function QuoteTable({
         <thead>
           <tr className="border-b bg-zinc-50 text-xs font-medium uppercase tracking-wider text-zinc-500">
             <th className="px-3 py-3">Type</th>
+            <th className="px-3 py-3">Category</th>
             <th className="px-3 py-3">Description</th>
             <th className="px-3 py-3 text-right">Qty</th>
             <th className="px-3 py-3">Unit</th>
@@ -345,7 +360,7 @@ export default function QuoteTable({
 
           {items.length === 0 && (
             <tr>
-              <td colSpan={8} className="px-3 py-8 text-center text-muted-foreground">
+              <td colSpan={9} className="px-3 py-8 text-center text-muted-foreground">
                 No line items yet. Click "Add Row" to add items manually.
               </td>
             </tr>
@@ -355,7 +370,7 @@ export default function QuoteTable({
         {/* Footer with totals */}
         <tfoot>
           <tr className="border-t-2 bg-zinc-50">
-            <td colSpan={6} className="px-3 py-3 text-right text-sm font-semibold">
+            <td colSpan={7} className="px-3 py-3 text-right text-sm font-semibold">
               Subtotal
             </td>
             <td className="px-3 py-3 text-right text-sm font-bold">
@@ -364,7 +379,7 @@ export default function QuoteTable({
             <td></td>
           </tr>
           <tr className="bg-zinc-50">
-            <td colSpan={6} className="px-3 py-3 text-right text-sm font-semibold">
+            <td colSpan={7} className="px-3 py-3 text-right text-sm font-semibold">
               Total
             </td>
             <td className="px-3 py-3 text-right text-lg font-bold text-green-700">

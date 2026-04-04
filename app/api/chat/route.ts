@@ -53,10 +53,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify this quote belongs to the user's company (RLS handles this too,
-    // but an explicit check gives us a clearer error message)
+    // but an explicit check gives us a clearer error message).
+    // Also fetch address fields so we can extract a zip code for regional pricing.
     const { data: quote } = await supabase
       .from("quotes")
-      .select("id, company_id")
+      .select("id, company_id, client_address, job_site_address")
       .eq("id", quote_id)
       .single();
 
@@ -91,7 +92,20 @@ export async function POST(request: NextRequest) {
       .eq("id", profile.company_id)
       .single();
 
-    const zipCode = company?.zip_code || "unknown";
+    // Try to determine the best zip code for regional pricing context.
+    // Priority: job site address → client address → company zip code on file.
+    // We extract a 5-digit zip from the address string using a simple regex.
+    function extractZip(address: string | null): string | null {
+      if (!address) return null;
+      const match = address.match(/\b(\d{5})(?:-\d{4})?\b/);
+      return match ? match[1] : null;
+    }
+
+    const zipCode =
+      extractZip(quote?.job_site_address) ||
+      extractZip(quote?.client_address) ||
+      company?.zip_code ||
+      "unknown";
 
     // Build the messages array for Claude from the conversation history
     const messages: Anthropic.MessageParam[] = (chatHistory || []).map(

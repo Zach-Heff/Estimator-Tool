@@ -16,6 +16,11 @@ RULES:
 
 2. For each line item, provide:
    - item_type: "material" or "labor"
+   - category: A grouping label that corresponds to a specific task or deliverable the client can see on their property. Categories should be granular enough that the client understands what each line covers, but not so granular that every individual part is its own group. Think of it as: "what distinct piece of work would the client point to and say 'that's what I'm paying for'?"
+     Examples of GOOD categories: "200A Panel Upgrade", "Weatherhead Replacement", "Grounding System", "Small Appliance Circuits (2x 20A)", "Range Circuit (50A)", "Dishwasher Circuit", "Disposal Circuit", "Recessed Lighting (6 lights)", "Countertop Receptacles"
+     Examples of BAD categories (too broad): "Panel Work", "Kitchen Rewire", "Materials", "Electrical"
+     Examples of BAD categories (too narrow): "12/2 Wire", "Ground Rod", "Breaker"
+     All materials AND labor for a given task share the same category. Be consistent — don't use "Range Circuit" for one item and "50A Range" for another.
    - description: Clear, specific description including size/spec where applicable (e.g., "12/2 NM-B Romex Cable" not just "Wire")
    - quantity: Numeric quantity
    - unit: Unit of measure (ft, each, hour, etc.)
@@ -52,6 +57,7 @@ RULES:
   "line_items": [
     {
       "item_type": "material",
+      "category": "Panel Upgrade",
       "description": "200A Main Breaker Panel (40-space)",
       "quantity": 1,
       "unit": "each",
@@ -60,6 +66,7 @@ RULES:
     },
     {
       "item_type": "labor",
+      "category": "Panel Upgrade",
       "description": "Panel installation and termination — 200A upgrade",
       "quantity": 6,
       "unit": "hour",

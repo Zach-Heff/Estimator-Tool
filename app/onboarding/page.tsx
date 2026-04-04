@@ -514,10 +514,9 @@ export default function OnboardingPage() {
           // The user can re-upload later in settings.
           console.warn("Logo upload failed:", uploadError.message);
         } else {
-          const {
-            data: { publicUrl },
-          } = supabase.storage.from("company-logos").getPublicUrl(filePath);
-          logoUrl = publicUrl;
+          // Store the storage path (e.g., "companyId/logo.png"), NOT the full public URL.
+          // The PDF generator uses this path with supabase.storage.download() to fetch the image.
+          logoUrl = filePath;
         }
       }
 
