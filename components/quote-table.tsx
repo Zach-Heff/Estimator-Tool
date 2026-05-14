@@ -71,14 +71,17 @@ function QuoteRow({
   }, []);
 
   const isAiEstimate = item.price_source === "ai_estimate";
+  const isFromPriceList = item.price_source === "contractor_list";
   const isLowConfidence = item.confidence_flag === "low";
 
   return (
     <tr
       className={`border-b ${
         isAiEstimate
-          ? "bg-amber-50" // Light orange/amber background for AI estimates — CLAUDE.md trust requirement
-          : ""
+          ? "bg-amber-50" // Light amber for AI estimates — CLAUDE.md trust requirement
+          : isFromPriceList
+            ? "bg-green-50" // Light green for items matched from the contractor's price list
+            : ""
       }`}
     >
       {/* Type badge */}
@@ -96,6 +99,15 @@ function QuoteRow({
         {isAiEstimate && (
           <span className="ml-1 inline-block rounded bg-amber-200 px-1.5 py-0.5 text-[10px] font-medium text-amber-800">
             AI Estimate
+          </span>
+        )}
+        {/* From-your-list badge — green to signal "this is YOUR actual price" */}
+        {isFromPriceList && (
+          <span
+            className="ml-1 inline-block rounded bg-green-200 px-1.5 py-0.5 text-[10px] font-medium text-green-800"
+            title="Price matched from your uploaded price list"
+          >
+            ✓ From Your List
           </span>
         )}
       </td>

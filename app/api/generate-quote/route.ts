@@ -7,6 +7,7 @@ import type {
   JobCategory,
   LaborMode,
 } from "@/lib/prompts/knowledge-base";
+import { fuzzyMatchItem } from "@/lib/modules/pricing";
 import { NextRequest } from "next/server";
 
 // Claude Sonnet pricing (per token) as of 2025.
@@ -310,29 +311,62 @@ export async function POST(request: NextRequest) {
       console.error("Review agent failed (proceeding with unreviewed quote):", reviewError);
     }
 
+    // ─── STEP 2.5: Load the company's price list catalog (if any) ───────────
+    // We'll try to match each AI-generated material line item against the
+    // contractor's uploaded price list. Matches use the contractor's actual
+    // price (price_source = 'contractor_list') instead of the AI estimate.
+    const { data: catalogData } = await supabase
+      .from("product_catalog")
+      .select("id, original_name, unit_price, unit")
+      .eq("company_id", profile.company_id);
+    const catalogEntries = (catalogData ?? []).map((c) => ({
+      id: c.id,
+      original_name: c.original_name,
+      unit_price: c.unit_price,
+      unit: c.unit,
+    }));
+
     // ─── STEP 3: Save the final (reviewed) line items to the database ───────
     // Billable price math depends on labor_mode for labor items:
     //   - hourly:        unit_cost (rate) × quantity (hours).  NO margin.
     //   - flat_fee:      unit_cost (flat amount) × quantity (typically 1).  NO margin.
     //   - margin_on_cost: existing behavior — labor cost × (1 + labor_margin/100).
     // Materials always use the company's material margin, regardless of labor_mode.
+    // For materials, we first try to match against the contractor's price list
+    // and use that price if a match is found.
     const lineItemRows = lineItems.map((item, index) => {
+      // Default: use the AI's estimate
+      let unitCost = item.unit_cost;
+      let priceSource: "ai_estimate" | "contractor_list" = "ai_estimate";
+      let confidenceFlag = item.confidence;
+
+      // Try to match materials against the contractor's price list.
+      // Labor items don't get matched — labor isn't in a product catalog.
+      if (item.item_type === "material" && catalogEntries.length > 0) {
+        const match = fuzzyMatchItem(item.description, catalogEntries);
+        if (match) {
+          unitCost = match.catalogItem.unit_price;
+          priceSource = "contractor_list";
+          confidenceFlag = "high"; // It's the contractor's real price, not an estimate
+        }
+      }
+
       let billablePrice: number;
       let marginApplied: number;
 
       if (item.item_type === "material") {
         marginApplied = materialMargin;
         billablePrice =
-          item.unit_cost * item.quantity * (1 + materialMargin / 100);
+          unitCost * item.quantity * (1 + materialMargin / 100);
       } else if (laborMode === "hourly" || laborMode === "flat_fee") {
         // No margin in these modes — the AI's unit_cost is the billable amount
         marginApplied = 0;
-        billablePrice = item.unit_cost * item.quantity;
+        billablePrice = unitCost * item.quantity;
       } else {
         // margin_on_cost — current default behavior
         marginApplied = laborMargin;
         billablePrice =
-          item.unit_cost * item.quantity * (1 + laborMargin / 100);
+          unitCost * item.quantity * (1 + laborMargin / 100);
       }
 
       return {
@@ -342,13 +376,14 @@ export async function POST(request: NextRequest) {
         description: item.description,
         quantity: item.quantity,
         unit: item.unit,
-        unit_cost: item.unit_cost,
+        unit_cost: unitCost, // May be the catalog price if matched
         margin_percent: marginApplied,
         billable_price: Math.round(billablePrice * 100) / 100,
-        price_source: "ai_estimate",
-        confidence_flag: item.confidence,
+        price_source: priceSource,
+        confidence_flag: confidenceFlag,
         sort_order: index + 1,
         // Preserve the AI's original values so we can track edits for training data
+        // and so the contractor can see what the AI thought before catalog matching
         ai_original_description: item.description,
         ai_original_quantity: item.quantity,
         ai_original_unit_cost: item.unit_cost,

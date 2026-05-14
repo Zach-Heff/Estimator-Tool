@@ -521,12 +521,47 @@ export default function OnboardingPage() {
         }
       }
 
-      // Upload price list if provided and not skipping
+      // Upload price list if provided and not skipping, then parse it into
+      // the product_catalog table so quote generation can match against it.
       if (!skip && priceListFile) {
         const filePath = `${companyId}/${priceListFile.name}`;
-        await supabase.storage
+        const { error: uploadError } = await supabase.storage
           .from("price-lists")
           .upload(filePath, priceListFile, { upsert: true });
+
+        if (uploadError) {
+          setErrors({
+            form: "Could not upload your price list: " + uploadError.message,
+          });
+          setLoading(false);
+          return;
+        }
+
+        // Parse the file server-side and populate product_catalog.
+        // If parsing fails, surface the error so the user can fix and retry —
+        // a quote without their price list defeats the whole point of upload.
+        const parseRes = await fetch("/api/parse-price-list", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ filename: priceListFile.name }),
+        });
+        const parseData = await parseRes.json();
+        if (!parseRes.ok) {
+          setErrors({
+            form:
+              parseData.error ||
+              "Could not parse your price list. Make sure it's a CSV with item name + price columns.",
+          });
+          setLoading(false);
+          return;
+        }
+        // Success — log the import count for confirmation in dev tools
+        console.log(
+          `Imported ${parseData.imported_count} items from price list` +
+            (parseData.parse_errors?.length
+              ? ` (${parseData.parse_errors.length} rows skipped)`
+              : "")
+        );
       }
 
       // Update the company record with all onboarding data
