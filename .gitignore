@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# cloud-sync duplicates (OneDrive/Dropbox create these when reconciling conflicts)
+_archive/
