@@ -18,6 +18,17 @@
       "Bash(yes \"\")",
       "Bash(bunx shadcn@latest init -d)",
       "Bash(bun run:*)",
+      "Bash(git cherry-pick:*)",
+      "Bash(gh pr:*)",
+      "Bash(git pull:*)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000)",
+      "Bash(kill 70219)",
+      "Bash(kill -9 70219)",
+      "Bash(lsof -ti:3000)",
+      "Bash(xargs kill:*)",
+      "Bash(lsof -ti:3001)",
+      "Bash(xargs ls:*)",
+      "Bash(bunx:*)",
       "WebSearch"
     ]
   }

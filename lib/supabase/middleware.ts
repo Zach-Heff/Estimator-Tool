@@ -33,12 +33,24 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Public routes that don't require authentication.
-  // Includes the signup API route so the form submission works before the user is logged in.
-  const publicPaths = ["/login", "/signup", "/api/auth", "/auth/callback", "/reset-password"];
+  // Public routes — accessible without authentication.
+  const publicPaths = ["/login", "/signup", "/api/auth", "/auth/callback"];
   const isPublicPath = publicPaths.some((path) =>
     request.nextUrl.pathname.startsWith(path)
   );
+
+  // Routes that should be accessible whether logged in or not.
+  // /reset-password needs to work for authenticated users (the reset link logs them in
+  // via /auth/callback before redirecting here), so it can't be in publicPaths
+  // (which redirects authenticated users to /dashboard).
+  const alwaysAllowedPaths = ["/reset-password"];
+  const isAlwaysAllowed = alwaysAllowedPaths.some((path) =>
+    request.nextUrl.pathname.startsWith(path)
+  );
+
+  if (isAlwaysAllowed) {
+    return supabaseResponse;
+  }
 
   if (!user && !isPublicPath) {
     // Not logged in and trying to access a protected route → redirect to login
