@@ -88,7 +88,8 @@ function CompanyDetailsStep({
       <CardHeader>
         <CardTitle>Company Details</CardTitle>
         <CardDescription>
-          This info appears on your quotes. You can update it later in settings.
+          This info appears on every quote you generate, so make sure it&apos;s
+          accurate.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

@@ -11,6 +11,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import QuoteTable from "@/components/quote-table";
 import PdfPreviewModal from "@/components/pdf-preview-modal";
 import type { Quote, ChatMessage, QuoteLineItem } from "@/types/database";
+import {
+  CATEGORY_LABELS,
+  type JobType,
+  type JobCategory,
+  type LaborMode,
+} from "@/lib/prompts/knowledge-base";
 
 // ─── Client Info Section ────────────────────────────────────────────────────
 // Collapsible section at the top for entering client/job details.
@@ -128,6 +134,206 @@ function ClientInfoSection({
   );
 }
 
+// ─── Job Settings Section ───────────────────────────────────────────────────
+// Pre-chat filters the owner picks BEFORE starting the clarification chat.
+// These get saved to the quote and passed into all three AI prompts as
+// system-message context, so the AI knows what kind of job this is from
+// the first message instead of having to figure it out from the scope.
+function JobSettingsSection({
+  quote,
+  onFieldSave,
+}: {
+  quote: Quote;
+  onFieldSave: (field: string, value: string | number | null) => void;
+}) {
+  const [collapsed, setCollapsed] = useState(false);
+  const [jobType, setJobType] = useState<JobType>(
+    (quote.job_type as JobType | null) ?? "residential"
+  );
+  const [jobCategory, setJobCategory] = useState<JobCategory | "">(
+    (quote.job_category as JobCategory | null) ?? ""
+  );
+  const [laborMode, setLaborMode] = useState<LaborMode>(
+    (quote.labor_mode as LaborMode | null) ?? "margin_on_cost"
+  );
+  const [laborRate, setLaborRate] = useState<string>(
+    quote.labor_rate_per_hour != null ? String(quote.labor_rate_per_hour) : ""
+  );
+
+  function handleJobTypeChange(value: JobType) {
+    setJobType(value);
+    onFieldSave("job_type", value);
+  }
+
+  function handleJobCategoryChange(value: string) {
+    const newCategory = value === "" ? null : (value as JobCategory);
+    setJobCategory(newCategory ?? "");
+    onFieldSave("job_category", newCategory);
+  }
+
+  function handleLaborModeChange(value: LaborMode) {
+    setLaborMode(value);
+    onFieldSave("labor_mode", value);
+  }
+
+  function handleLaborRateBlur() {
+    const trimmed = laborRate.trim();
+    if (trimmed === "") {
+      onFieldSave("labor_rate_per_hour", null);
+      return;
+    }
+    const num = parseFloat(trimmed);
+    if (!isNaN(num) && num > 0) {
+      onFieldSave("labor_rate_per_hour", num);
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader
+        className="cursor-pointer"
+        onClick={() => setCollapsed(!collapsed)}
+      >
+        <CardTitle className="flex items-center justify-between text-lg">
+          Job Settings
+          <span className="text-sm font-normal text-muted-foreground">
+            {collapsed ? "Show" : "Hide"}
+          </span>
+        </CardTitle>
+      </CardHeader>
+      {!collapsed && (
+        <CardContent className="space-y-5">
+          {/* Job Type — residential vs commercial */}
+          <div>
+            <Label className="mb-2 block">Job Type</Label>
+            <div className="flex gap-3">
+              {(["residential", "commercial"] as JobType[]).map((type) => (
+                <label
+                  key={type}
+                  className={`flex flex-1 cursor-pointer items-center justify-center rounded-md border px-4 py-2 text-sm font-medium transition ${
+                    jobType === type
+                      ? "border-blue-600 bg-blue-50 text-blue-700"
+                      : "border-zinc-200 hover:bg-zinc-50"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="job_type"
+                    value={type}
+                    checked={jobType === type}
+                    onChange={() => handleJobTypeChange(type)}
+                    className="sr-only"
+                  />
+                  {type === "residential" ? "Residential" : "Commercial"}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Job Category — preset that primes the AI with category templates */}
+          <div>
+            <Label htmlFor="job_category" className="mb-2 block">
+              Job Category{" "}
+              <span className="font-normal text-muted-foreground">
+                — helps the AI pre-load the right line items
+              </span>
+            </Label>
+            <select
+              id="job_category"
+              value={jobCategory}
+              onChange={(e) => handleJobCategoryChange(e.target.value)}
+              className="w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+            >
+              <option value="">— Select a category (optional) —</option>
+              {(Object.keys(CATEGORY_LABELS) as JobCategory[]).map((key) => (
+                <option key={key} value={key}>
+                  {CATEGORY_LABELS[key]}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Labor Pricing Mode + conditional rate input */}
+          <div>
+            <Label className="mb-2 block">How you price labor</Label>
+            <div className="space-y-2">
+              <label className="flex cursor-pointer items-start gap-3 rounded-md border border-zinc-200 p-3 hover:bg-zinc-50">
+                <input
+                  type="radio"
+                  name="labor_mode"
+                  value="hourly"
+                  checked={laborMode === "hourly"}
+                  onChange={() => handleLaborModeChange("hourly")}
+                  className="mt-1"
+                />
+                <div className="flex-1">
+                  <div className="text-sm font-medium">Hourly</div>
+                  <div className="text-xs text-muted-foreground">
+                    Labor billed at hours × hourly rate. No margin applied to labor.
+                  </div>
+                </div>
+              </label>
+
+              <label className="flex cursor-pointer items-start gap-3 rounded-md border border-zinc-200 p-3 hover:bg-zinc-50">
+                <input
+                  type="radio"
+                  name="labor_mode"
+                  value="margin_on_cost"
+                  checked={laborMode === "margin_on_cost"}
+                  onChange={() => handleLaborModeChange("margin_on_cost")}
+                  className="mt-1"
+                />
+                <div className="flex-1">
+                  <div className="text-sm font-medium">Margin on cost</div>
+                  <div className="text-xs text-muted-foreground">
+                    Your raw labor cost × your labor margin %. The default.
+                  </div>
+                </div>
+              </label>
+
+              <label className="flex cursor-pointer items-start gap-3 rounded-md border border-zinc-200 p-3 hover:bg-zinc-50">
+                <input
+                  type="radio"
+                  name="labor_mode"
+                  value="flat_fee"
+                  checked={laborMode === "flat_fee"}
+                  onChange={() => handleLaborModeChange("flat_fee")}
+                  className="mt-1"
+                />
+                <div className="flex-1">
+                  <div className="text-sm font-medium">Flat fee per task</div>
+                  <div className="text-xs text-muted-foreground">
+                    A single dollar amount per labor line item. No rate × hours math.
+                  </div>
+                </div>
+              </label>
+            </div>
+
+            {laborMode === "hourly" && (
+              <div className="mt-3">
+                <Label htmlFor="labor_rate_per_hour">
+                  Hourly labor rate (USD)
+                </Label>
+                <Input
+                  id="labor_rate_per_hour"
+                  type="number"
+                  inputMode="decimal"
+                  step="0.01"
+                  min="0"
+                  value={laborRate}
+                  onChange={(e) => setLaborRate(e.target.value)}
+                  onBlur={handleLaborRateBlur}
+                  placeholder="e.g., 95.00"
+                />
+              </div>
+            )}
+          </div>
+        </CardContent>
+      )}
+    </Card>
+  );
+}
+
 // ─── Typing Indicator ───────────────────────────────────────────────────────
 // Three animated dots shown while waiting for Claude's response
 function TypingIndicator() {
@@ -184,10 +390,24 @@ function ScopeInput({
         <CardTitle className="text-lg">Scope of Work</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="rounded-md bg-blue-50 p-3 text-sm text-blue-900">
+          <p className="font-medium">
+            Describe the job like you&apos;d tell a coworker on the phone.
+          </p>
+          <p className="mt-1 text-blue-800">
+            The AI will ask follow-up questions to fill in the gaps. Voice-to-text
+            is fine — it doesn&apos;t need to be cleaned up.
+          </p>
+          <p className="mt-2 text-xs italic text-blue-700">
+            Example: &ldquo;Upgrading 100A panel to 200A in a 1950s house in
+            Springfield, attached garage panel, plus running a new 50A circuit
+            for an EV charger in the garage.&rdquo;
+          </p>
+        </div>
         <Textarea
           value={scope}
           onChange={(e) => setScope(e.target.value)}
-          placeholder="Describe the scope of work. You can paste raw voice-to-text here — it doesn't need to be cleaned up."
+          placeholder="Type or paste the scope of work here..."
           rows={8}
           className="resize-y"
         />
@@ -408,9 +628,11 @@ export default function QuoteEditPage() {
     loadQuote();
   }, [supabase, router, quoteId]);
 
-  // Auto-save a single quote field when the user blurs out of an input
+  // Auto-save a single quote field when the user changes/blurs an input.
+  // Accepts string | number | null because job_category can be cleared (null)
+  // and labor_rate_per_hour is a decimal.
   const handleFieldSave = useCallback(
-    async (field: string, value: string) => {
+    async (field: string, value: string | number | null) => {
       await supabase
         .from("quotes")
         .update({ [field]: value })
@@ -636,7 +858,10 @@ export default function QuoteEditPage() {
         {/* Section 1: Client Info */}
         <ClientInfoSection quote={quote} onFieldSave={handleFieldSave} />
 
-        {/* Section 2: Scope Input (Phase A) or Chat (Phase B) */}
+        {/* Section 2: Job Settings — pre-chat filters that the AI uses as context */}
+        <JobSettingsSection quote={quote} onFieldSave={handleFieldSave} />
+
+        {/* Section 3: Scope Input (Phase A) or Chat (Phase B) */}
         <div ref={chatRef}>
           {!hasStartedChat ? (
             <ScopeInput onSubmit={handleScopeSubmit} disabled={isStreaming} />
