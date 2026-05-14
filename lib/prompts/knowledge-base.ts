@@ -72,33 +72,58 @@ export const CATEGORY_LABELS: Record<JobCategory, string> = {
 
 export const VOCABULARY_GUIDE = `VOCABULARY — match the precision an experienced estimator would use:
 - "Conductor" for individual wires by spec; "cable" for assemblies (e.g., NM-B, MC); avoid generic "wire" when spec matters
+- "NM-B" preferred over the trade name "Romex" in formal scope and permit paperwork (Romex is a Southwire trademark; AHJs often prefer the generic term)
 - "Receptacle" for the device itself; "outlet" for the wiring point (NEC term)
 - "Panel" or "panelboard"; not "fuse box" or "breaker box"
+- "Service disconnect" is the NEC term (NEC 230.70) — regardless of breaker, fused switch, or molded-case switch
+- "Service drop" = utility-owned OVERHEAD conductors from pole to weatherhead; "service lateral" = utility-owned UNDERGROUND conductors from transformer to meter; "service conductors" = customer-owned conductors from utility attachment through meter to service disconnect
+- "120/240V split-phase" is the correct term for US residential single-phase service (two hots 180° out of phase + neutral) — do NOT call it "220V"
 - "Branch circuit" = conductors + protective device, together
-- "Grounding electrode system" includes rod(s), ufer (concrete-encased electrode), bonded water pipe, etc.
-- "Equipment grounding conductor" (EGC); "grounded conductor" (neutral); "ungrounded conductor" (hot/line)
+- "Grounding electrode system" (GES) includes rod(s), ufer (concrete-encased electrode / CEE), bonded metallic water pipe, building steel, etc.
+- "Equipment grounding conductor" (EGC); "grounded conductor" (neutral, when precision matters); "ungrounded conductor" (hot/line, when precision matters)
 - "Authority Having Jurisdiction" (AHJ) covers city/county/state/utility
 - "Ampacity" (not loose "amps") for current-carrying capacity
-- "Continuous load" triggers NEC 210.19 125% derate for breaker sizing
-- "Tamper-resistant" (TR) per NEC 406.12; "in-use cover" for outdoor receptacles
+- "Continuous load" (3+ hours) triggers NEC 210.19 and 215.2 125% derate for conductor and OCPD sizing
+- "Tamper-resistant" (TR) per NEC 406.12; "weather-resistant" (WR) for outdoor per NEC 406.9(A); "in-use cover" (NOT just weatherproof) for outdoor receptacles
 - "Listed" by NRTL (UL/ETL/CSA) — specific meaning; not "approved"
+- "EVSE" (Electric Vehicle Supply Equipment) is the technical term for the wall unit; "EV charger" is fine for customer-facing scope; "EVSE" preferred in permit/inspection paperwork
+- "Knockout" (KO) — the removable disc in a panel or box
+- Conduit: "EMT" (thin-wall steel) vs "IMC" (intermediate-wall threadable steel) vs "RMC" (heavy-wall rigid steel) vs "PVC Sch 40" (general underground) vs "PVC Sch 80" (exposed-to-damage) — use the specific type, not just "conduit"
+- "Rough-in" = boxes + cable runs before drywall (rough inspection); "trim-out" / "trim" = devices + fixtures + cover plates after drywall (final inspection); "pull" = running conductors through conduit; "make-up" = terminating conductors at a box
+
+REGIONAL VARIATION — match the contractor's regional usage rather than correcting them:
+- "Mast" (Western US) vs "riser" (Northeast) for the service entrance pipe from roof to weatherhead
+- "Service disconnect" (NEC) vs "main shutoff" (West/South colloquial) vs "service switch" (Northeast colloquial)
+- California Title 24 layers energy-code requirements on top of NEC for lighting and HVAC controls; AHJs enforce both
+- Chicago / Cook County IL: historic local amendment requires conduit (EMT) for ALL branch circuits in dwellings — NM-B prohibited. Quotes for these jurisdictions must budget conduit material + labor on every run
+
 Default NEC version is 2023 unless the AHJ uses a different cycle. Flag "verify with AHJ" rather than asserting local rules.`;
 
 // ─── Key code triggers (Section D — the universal ones) ────────────────────
 
 export const CODE_TRIGGERS = `KEY NEC 2023 CODE TRIGGERS for residential service (always check):
-- GFCI required (NEC 210.8): bathrooms, kitchen countertops, within 6 ft of sinks, garages, outdoors, basements, laundry, crawl spaces, bath/shower stalls
+- WHOLE-HOUSE SPD REQUIRED on all services supplying dwelling units (NEC 230.67, added in NEC 2020 cycle). Type 1 or Type 2 SPD, integral with or immediately adjacent to service equipment. Applies to single-family, multi-family, dormitories, hotel/motel guest rooms, and patient sleeping rooms. This is the single most-missed line item on legacy panel-upgrade quote templates.
+- GFCI required (NEC 210.8(A)): bathrooms, kitchen countertops, within 6 ft of sinks, garages, outdoors, basements, laundry, crawl spaces, bath/shower stalls, boathouses. NEC 2023 expanded 210.8(D)/(F) to dwelling-unit appliances (dishwashers, ranges) — [verify with AHJ — adoption varies].
 - AFCI required (NEC 210.12): most 15A and 20A 120V branch circuits in habitable rooms; dual-function AFCI/GFCI covers both
-- Tamper-resistant receptacles in dwelling units (NEC 406.12)
-- Working space around panels: 30" wide × 36" deep × 6'6" high (NEC 110.26)
+- Tamper-resistant receptacles in dwelling units (NEC 406.12); replacement rule (NEC 406.4(D)(5)) — when replacing a receptacle in a TR-required location, replacement must be TR. Exceptions: ≥5½ ft above floor; part of luminaire/appliance; dedicated-space receptacles behind non-easily-moved appliances.
+- Working space around panels: 30" wide × 36" deep × 6'6" high (NEC 110.26). NEC 2023 also extended 110.26(A) working-space requirements to HVAC disconnects under 440.14 — a disconnect crammed behind a condenser will now fail inspection.
 - IC-rated recessed lights REQUIRED in insulated ceilings
-- Smoke detectors hardwired AND interconnected (14/3 NM-B) in new construction and significant remodels (IRC + NEC)
-- Continuous loads (EV chargers, etc.): conductor and breaker sized at 125% (NEC 210.19)
-- NM-B (Romex) NOT permitted in wet locations — use THWN-2 in conduit
-- Wet-location boxes: NEMA 3R or better; in-use covers per NEC 406.9(B)
-- Pool/spa bonding grid required (NEC 680); GFCI on spa circuits; disconnect within sight 5–10 ft from water
+- Smoke / CO detectors: hardwired AND interconnected (14/3 NM-B) in new construction and significant remodels (IRC R314/R315 + NEC). Required placement: one smoke per bedroom, one outside each sleeping area, one per floor; one CO outside each sleeping area; combination smoke/CO units satisfy both at sleeping-area locations.
+- Continuous loads (3+ hours; EV chargers, electric water heaters ≤120 gal, etc.): conductor and OCPD sized at 125% (NEC 210.19, 215.2)
+- 4-WIRE RANGE / DRYER required for any new circuit (NEC 250.140; 3-wire range/dryer disallowed for new since NEC 1996). Existing 3-wire is grandfathered; replacing branch-circuit conductors triggers 4-wire requirement.
+- NM-B (Romex) NOT permitted in wet OR damp locations (NEC 334.12(B)) — use THWN-2 in conduit
+- Wet-location boxes: NEMA 3R or better; in-use covers per NEC 406.9(B) (damp-location covers insufficient for outdoor receptacles where cords may be plugged in continuously)
+- Required outdoor receptacles (NEC 210.52(E)(1)): at least one at front AND back of dwelling, readily accessible from grade, ≤6½ ft above grade. Balconies/decks/porches accessible from inside need one within perimeter, ≤6½ ft above surface (NEC 210.52(E)(3)).
+- Kitchen small-appliance circuits: minimum 2 dedicated 20A circuits serving countertop + dining receptacles (NEC 210.52(B), 210.11(C)(1)); countertop receptacle spacing — no point along the countertop wall line more than 24" from a receptacle (NEC 210.52(C)(1)). NEC 2023: island/peninsula receptacles are now optional, but if omitted, future-installation provisions (junction box, blank cover labeled "for future") required.
+- Dishwasher/disposal connection (NEC 422.16): cord-and-plug permitted with manufacturer-listed flexible cord (dishwasher 3–6.5 ft cord, disposal 18–36" cord), grounding-type plug; dishwasher receptacle in adjacent space (typically under sink), not in dishwasher space.
+- HVAC / mini-split disconnect within sight and readily accessible from equipment (NEC 440.14); NEC 2023 requires the disconnect to meet 110.26(A) working space.
+- Garage door opener ceiling receptacle: GFCI protection required (NEC 210.8(A)(2)) — older "single GDO receptacle exempt from GFCI" allowance removed in NEC 2020.
+- Bath fan with heater = fixed appliance, typically dedicated 20A circuit [verify against fan nameplate]; plain bath fan (<1A) can share lighting circuit; the dedicated bathroom 20A small-appliance circuit (NEC 210.11(C)(3)) is for receptacles only.
+- Pool/spa bonding grid required (NEC 680.26, #8 AWG solid CU); GFCI on spa circuits per NEC 680; disconnect within sight 5–10 ft from water (NEC 680.12)
+- Subpanel at separate structure (NEC 250.32): 4-wire feeder REQUIRED (2 hots + neutral + EGC); separate grounding electrode system AT the structure (typically a ground rod) bonded to EGC bus only; neutral and ground bars ISOLATED in subpanel (neutral floats). Exception for single-branch-circuit feeds.
+- Generator transfer equipment (NEC 702.5): must be LISTED and prevent parallel utility connection. Breaker interlock kits must be listed for the specific panel brand AND model — universal/aftermarket interlocks are commonly rejected by AHJ. Service-entrance-rated transfer switches contain the service disconnect and OCPD.
 - Aluminum branch wiring (1965–1973 era): COPALUM crimps or AlumiConn connectors with antioxidant compound; use CO/ALR-rated devices where applicable
-- Red-flag legacy panel brands: Federal Pacific Stab-Lok, Zinsco, Pushmatic — known fire hazards, recommend replacement`;
+- Red-flag legacy panel brands: Federal Pacific Stab-Lok, Zinsco, Pushmatic, Challenger, early ITE/Bulldog Pushmatic — known fire hazards, recommend replacement`;
 
 // ─── Confidence rules (Section F) ──────────────────────────────────────────
 
@@ -129,15 +154,18 @@ Every panel upgrade quote should include these items unless the conversation exp
 Red-flag panel brands to mention if the homeowner has them: Federal Pacific Stab-Lok, Zinsco, Pushmatic.`,
 
   subpanel_install: `SUBPANEL INSTALL BASELINE (separate structure or remote location):
-- Subpanel + main breaker (sized to feeder)
+- Subpanel enclosure + main breaker or main lugs (sized to feeder; main-breaker subpanel preferred where it serves as the disconnect at a separate structure)
 - Feeder breaker in main panel (2-pole, sized to subpanel ampacity)
-- Feeder conductors: 4-wire (two hots + neutral + EGC) — NEVER 3-wire to a separate structure under NEC 2008+
-- Conduit (PVC Sch 40 underground; EMT or rigid above-ground per AHJ)
-- Trenching if underground (typical 18" depth for PVC Sch 40 per NEC 300.5)
-- Grounding electrode at the separate structure (ground rod + bond)
+- Feeder conductors: 4-WIRE (2 hots + neutral + EGC) — NEVER 3-wire for a separate structure under NEC 2008+. Common: 6/3 NM-B + ground for 60A; 4/3 NM-B for 100A short runs; 2/3 SER for 100A on longer runs (voltage-drop sensitive)
+- Conduit: PVC Sch 40 typical underground; Sch 80 where subject to physical damage; EMT or RMC above-ground per AHJ
+- Trenching if underground — min 18" depth for PVC Sch 40 residential per NEC 300.5; deeper under driveways
+- GROUNDING ELECTRODE AT THE SEPARATE STRUCTURE (NEC 250.32(A)): ground rod (typically two 5/8" × 8' driven ≥6 ft apart) bonded to the subpanel's EGC bus — NOT to neutral
+- NEUTRAL AND GROUND BUS ISOLATED at the subpanel (neutral floats; ground bonded to enclosure). Main-bonding jumper REQUIRED at service but PROHIBITED at downstream panels — #1 mistake on subpanel installs
+- Exception (NEC 250.32(A) Exception): if the separate structure is fed by only a single branch circuit with an EGC, no separate grounding electrode required at the structure
 - Branch breakers per loads served
+- Load calculation per NEC 220 (typically 220.83 for existing-dwelling load additions)
 - Permit + inspection
-- Labor: 4–10 hours depending on run length and trenching`,
+- Labor: 4–10 hours depending on run length and trenching; longer for trenching through hardscape`,
 
   ev_charger: `EV CHARGER INSTALL BASELINE (Level 2 — 240V):
 - Dedicated 2-pole breaker (typically 40A or 50A; sized per charger spec + 125% continuous-load rule per NEC 210.19)
@@ -151,43 +179,114 @@ Red-flag panel brands to mention if the homeowner has them: Federal Pacific Stab
 The customer usually supplies the charger unit itself — confirm during clarification; do NOT include the charger as a line item unless the contractor is supplying it.`,
 
   service_call: `SERVICE CALL / TROUBLESHOOTING BASELINE:
-Highly variable scope. Default approach:
-- Diagnostic labor: minimum 1 hour at posted rate; often capped at 2 hours before pause-and-confirm with customer
-- Materials only as identified during diagnosis (could be a single GFCI replacement; could be a partial rewire)
-- If issue is not resolvable within the diagnostic window, generate a follow-up quote for the actual repair scope
-- No permit usually needed for minor repair/replace; permit needed if new circuits are required
+Highly variable scope. Most residential service shops use a trip-charge + hourly-cap-and-confirm model:
+- TRIP CHARGE / DISPATCH FEE: fixed (typical $89–$149 in most metros; higher in HCOL) — covers travel + first 30 min on-site; non-refundable
+- DIAGNOSTIC LABOR: hourly rate AFTER trip charge consumed; commonly capped at 1–2 hours before "pause and confirm" with customer
+- REPAIR SCOPE: quoted separately once fault identified, OR rolled into same invoice if a quick fix (single device replacement)
+- Some shops use a flat-rate "book" (price-per-task) model instead of T&M — clarify with the contractor
+
+COMMON RESIDENTIAL TROUBLESHOOTING PATTERNS (use these to scope diagnostic time + likely follow-up work):
+- No power to a single outlet → tripped GFCI upstream (LINE/LOAD); broken back-stab; loose neutral; open breaker; failed device
+- Lights flickering throughout the whole house → loose neutral at panel/meter (HAZARD, escalate); utility-side issue; loose service connection
+- Lights flickering in one room → loose neutral in that branch circuit; failing dimmer; bad LED retrofit driver
+- Breaker tripping repeatedly → overload; short to ground; short between conductors; failing breaker; downstream AFCI/GFCI condition
+- GFCI nuisance trips → moisture intrusion (outdoor); shared neutral on multiwire branch circuit; downstream LED driver leakage; failing GFCI
+- AFCI nuisance trips → older AFCI breakers with vacuums/treadmills/drills; failing AFCI; legitimate arc fault (investigate, don't defeat)
+- Burning smell at panel → loose lug / failing breaker / melted bus — STOP and kill power at utility if accessible; safety escalation
+- Half the house dead → lost a hot leg; loose connection at meter/weatherhead/service-entrance lug; failed main breaker pole; utility-side leg failure
+
+DIAGNOSTIC EQUIPMENT BASELINE (every service truck should have):
+- Digital multimeter (DMM)
+- Non-contact voltage tester (NCVT)
+- Plug-in receptacle tester (with GFCI test button)
+- Clamp ammeter
+- Insulation resistance tester (megger) for old wiring / K&T / insulation integrity (500V or 1000V test)
+- Tone-and-probe set for tracing unmarked circuits
+- Thermal camera (optional, valuable for lug / breaker / splice hot spots)
+
+PERMIT NOTES:
+- No permit usually needed for repair-in-place (replace failed breaker, replace failed device, repair splice in existing box)
+- Permit IS needed if repair extends to new circuits, new panel, or any service-entrance modification
+
 Confidence should default to "medium" or "low" until clarification narrows the actual fault.`,
 
   kitchen_rewire: `KITCHEN RENOVATION ELECTRICAL BASELINE:
-- Dedicated 20A small-appliance branch circuits — minimum 2 per NEC 210.52(B); plus separate dedicated 20A for refrigerator, microwave, dishwasher, disposal as applicable
-- GFCI protection on all receptacles serving countertop surfaces and within 6 ft of sink (NEC 210.8(A)(6) + (A)(7))
-- AFCI protection on most 15A and 20A kitchen circuits (NEC 210.12); dual-function AFCI/GFCI common
-- Under-cabinet lighting / strips if scope includes
-- Recessed lighting rough-in + finish (homeowner often supplies fixtures — confirm)
+REQUIRED CIRCUITS (NEC 210.52(B), 210.11(C)(1)):
+- Minimum 2 dedicated 20A small-appliance branch circuits serving kitchen/pantry/breakfast/dining receptacles only — no lighting, no fans on these circuits
+- Refrigerator: can share a small-appliance circuit OR be on its own dedicated 15A/20A (NEC 210.52(B)(1) Ex. 2); most contractors run a dedicated 20A so a kitchen trip doesn't kill the fridge
+- Dishwasher: typically dedicated 15A or 20A (check appliance nameplate); NEC 422.16(B)(2) governs cord-and-plug
+- Disposal: typically dedicated 15A or 20A; NEC 422.16(B)(1) governs cord-and-plug. Some installers combine dishwasher + disposal on one 20A circuit with two under-sink receptacles — verify combined load and AHJ
+- Microwave: dedicated 20A per most manufacturer specs and NEC 210.23(A) when nameplate >50% of circuit rating
+- Range / cooktop / wall oven: dedicated 40A or 50A 240V circuit; 4-WIRE REQUIRED (NEC 250.140) — 8/3 NM-B w/ ground for 40A, 6/3 for 50A; larger cooktops / double ovens may need 50A or larger per nameplate
+
+COUNTERTOP RECEPTACLE PLACEMENT (NEC 210.52(C)):
+- No point along the countertop wall line more than 24" from a receptacle (i.e., max 48" between receptacles on a continuous run)
+- Receptacle required at any wall countertop space 12" or wider
+- Max receptacle height above countertop: 20" (NEC 210.52(C)(5))
+- NEC 2023 CHANGE: island / peninsula receptacles are now OPTIONAL. If omitted, must include provisions for future installation (junction box with blank cover labeled "for future receptacle"). Clarify with customer whether they want island outlets or just the future-rough provision — this is a real cost difference.
+
+PROTECTION:
+- GFCI on all receptacles serving countertop surfaces (NEC 210.8(A)(6))
+- GFCI on any receptacle within 6 ft of a sink (NEC 210.8(A)(7)) — refrigerator inclusive if positioned near sink
+- AFCI on most 15A and 20A kitchen branch circuits (NEC 210.12); dual-function AFCI/GFCI common
+- NEC 2023 expanded GFCI to dishwashers and ranges under 210.8(D)/(F) — [verify with AHJ — adoption varies]
 - Tamper-resistant receptacles in dwelling units (NEC 406.12)
-- 12/2 NM-B for 20A circuits; 14/2 for 15A circuits (residential typical)
+
+LIGHTING:
+- Room lighting on a separate 15A/20A circuit from small-appliance circuits
+- Under-cabinet lighting: low-voltage LED tape or 120V hardwired strips; clarify with customer
+- Recessed lighting rough-in + finish (homeowner often supplies fixtures — confirm); IC-rated REQUIRED in insulated ceilings
+
+MATERIALS:
+- 12/2 NM-B w/ ground for 20A circuits; 14/2 for 15A; 8/3 or 6/3 for range; 10/3 for dryer
+- Box fill calculations per NEC 314.16 — verify box depth for device + conductor count
 - Misc: wire nuts, staples, box extensions, cover plates
+
+PERMIT + LABOR:
 - Permit + inspection if new circuits added
-- Labor: 4–16 hours — highly variable with scope`,
+- Labor: 4–16 hours — highly variable; full rewire with new circuits, panel reconfiguration, finish work can exceed 30 hours`,
 
   bath_rewire: `BATHROOM ELECTRICAL UPDATE BASELINE:
-- Dedicated 20A circuit for bathroom receptacles (NEC requires)
+- Dedicated 20A circuit for bathroom receptacles (NEC 210.11(C)(3)) — serves bathroom receptacles only, OR serves only ONE bathroom's receptacles + that bathroom's lighting/fan (NEC 210.11(C)(3) Exception). Cannot serve more than one bathroom plus lighting.
 - GFCI on all bathroom receptacles (NEC 210.8(A)(1))
-- AFCI per NEC 210.12 (dual-function AFCI/GFCI is common single-device solution)
-- Lighting circuit (often shared with hall in some jurisdictions; verify AHJ)
-- Bath fan + switch (heat-rated if combo fan/light/heat)
-- Tamper-resistant receptacles
+- AFCI per NEC 210.12; combination AFCI/GFCI (dual-function) common
+- Lighting circuit: share with bath 20A under 210.11(C)(3) Exception (single bathroom only) OR general lighting circuit
+- Vanity light fixtures damp-rated if subject to splashing
+- Bath fan + switch: if fan only (<1A), can share lighting; fan/heat or fan/heat/light combo = fixed appliance, likely dedicated 20A [verify against nameplate]
+- Recessed lighting over tub/shower: damp- or wet-rated per NEC 410.10(D)
+- Tub/shower zone restrictions (NEC 410.10(D)): no cord-and-plug luminaires; no luminaires within 3 ft horizontal and 8 ft vertical of bathtub rim or shower threshold unless damp/wet-listed; no track lighting in the zone
+- Tamper-resistant receptacles (NEC 406.12)
+- 12/2 NM-B for the 20A circuit; 14/2 for any 15A lighting tie-in
 - Permit if new circuits added`,
 
   gfci_afci_update: `GFCI / AFCI UPDATE BASELINE (no rewiring required):
-- NEC 406.4(D) allows replacing ungrounded 2-prong outlets with GFCI outlets WITHOUT rewiring; each labeled "GFCI Protected / No Equipment Ground"
-- GFCI outlet per location, OR one GFCI feeding downstream via LINE/LOAD terminals (cheaper for multiple downstream locations)
-- Standard outlet + faceplate replacements for non-GFCI locations
-- Outdoor GFCIs in weatherproof in-use covers (NEC 406.9(B))
-- GFCI test labels per code
-- Misc materials (wire nuts, faceplates)
+NEC 406.4(D) allows replacing ungrounded 2-prong outlets with GFCI outlets WITHOUT rewiring; each labeled "GFCI Protected" + "No Equipment Ground."
+
+FEED-THROUGH (LINE/LOAD) STRATEGY — saves money when wiring sequence is known:
+- One GFCI device protects downstream receptacles on the same circuit via LOAD terminals; downstream receptacles are standard (cheaper) with "GFCI Protected" labels
+- Use feed-through when: multiple required-GFCI receptacles share a circuit and wiring sequence can be identified; outdoor receptacles fed from inside (install GFCI indoors)
+- Use one-per-location when: wiring is unmapped, customer wants visible GFCI test/reset at each location, or mixed loads make a single trip too disruptive (e.g., refrigerator on same run)
+
+REPLACEMENT RULES (NEC 406.4(D) + 406.12):
+- Grounding-type required where the box has an EGC (3-wire present)
+- Non-grounding 2-prong replacement allowed where NO EGC exists (older K&T or 2-wire NM): options are (a) non-grounding receptacle, (b) GFCI labeled "No Equipment Ground," or (c) grounding-type downstream of a GFCI labeled "GFCI Protected" + "No Equipment Ground"
+- TAMPER-RESISTANT REQUIRED (NEC 406.4(D)(5)) when replacing in a TR-required location (NEC 406.12)
+- WEATHER-RESISTANT (WR) required outdoors (NEC 406.9(A))
+
+OUTDOOR RECEPTACLE CONSIDERATIONS:
+- NEC 210.52(E)(1) requires at least one receptacle at the front AND back of every one-/two-family dwelling, readily accessible from grade, ≤6½ ft above grade
+- If a customer's current outdoor receptacles violate this (missing one, blocked by landscaping), this is a code-driven add-on worth flagging
+- All outdoor receptacles need WR + GFCI + in-use covers (NEC 406.9(B))
+
+LINE ITEMS:
+- GFCI outlets per LINE/LOAD strategy
+- Standard outlets + cover plates for downstream locations
+- WR + TR outlets where applicable
+- Outdoor in-use covers (NEC 406.9(B))
+- "GFCI Protected" labels at every downstream receptacle
+- Misc materials (wire nuts, faceplates, labels)
 - Typically NO permit required (straight outlet replacement)
-- Labor: ~30 min per receptacle for straightforward swap; longer if fishing new circuits to outdoor locations`,
+- Labor: ~30 min per receptacle for straightforward swap; longer for outdoor fishing or unmapped-wiring verification`,
 
   lighting: `LIGHTING WORK BASELINE:
 - Fixtures (clarify: homeowner-supplied or contractor-supplied)
