@@ -2,6 +2,11 @@ import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@/lib/supabase/server";
 import { getQuoteGeneratorSystemPrompt } from "@/lib/prompts/quote-generator";
 import { getQuoteReviewerSystemPrompt } from "@/lib/prompts/quote-reviewer";
+import type {
+  JobType,
+  JobCategory,
+  LaborMode,
+} from "@/lib/prompts/knowledge-base";
 import { NextRequest } from "next/server";
 
 // Claude Sonnet pricing (per token) as of 2025.
@@ -73,16 +78,30 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: "User profile not found" }, { status: 404 });
     }
 
-    // Verify quote exists and belongs to this company
+    // Verify quote exists and belongs to this company.
+    // Also fetch the pre-chat filters (job_type, job_category, labor_mode,
+    // labor_rate_per_hour) — these are passed to both the generator and
+    // reviewer prompts as context, AND labor_mode drives the billable price
+    // math below (hourly + flat_fee skip labor margin; margin_on_cost applies it).
     const { data: quote } = await supabase
       .from("quotes")
-      .select("id, company_id")
+      .select(
+        "id, company_id, job_type, job_category, labor_mode, labor_rate_per_hour"
+      )
       .eq("id", quote_id)
       .single();
 
     if (!quote) {
       return Response.json({ error: "Quote not found" }, { status: 404 });
     }
+
+    // Narrow the raw text columns to our app-level enums. Defaults match
+    // the migration's column defaults so older quotes (or any nulls) get
+    // safe fallbacks that match pre-migration behavior.
+    const jobType = (quote.job_type ?? undefined) as JobType | undefined;
+    const jobCategory = (quote.job_category ?? null) as JobCategory | null;
+    const laborMode = ((quote.labor_mode ?? "margin_on_cost") as LaborMode);
+    const laborRatePerHour = quote.labor_rate_per_hour ?? null;
 
     // Load all chat messages for this quote — Claude needs the full conversation context
     const { data: chatHistory } = await supabase
@@ -144,7 +163,13 @@ export async function POST(request: NextRequest) {
       const result = await anthropic.messages.create({
         model: MODEL,
         max_tokens: 8192,
-        system: getQuoteGeneratorSystemPrompt({ zipCode }),
+        system: getQuoteGeneratorSystemPrompt({
+          zipCode,
+          jobType,
+          jobCategory,
+          laborMode,
+          laborRatePerHour,
+        }),
         messages: messagesToSend,
       });
 
@@ -197,7 +222,13 @@ export async function POST(request: NextRequest) {
       const reviewResult = await anthropic.messages.create({
         model: MODEL,
         max_tokens: 4096,
-        system: getQuoteReviewerSystemPrompt({ zipCode }),
+        system: getQuoteReviewerSystemPrompt({
+          zipCode,
+          jobType,
+          jobCategory,
+          laborMode,
+          laborRatePerHour,
+        }),
         messages: [
           {
             role: "user",
@@ -271,9 +302,29 @@ export async function POST(request: NextRequest) {
     }
 
     // ─── STEP 3: Save the final (reviewed) line items to the database ───────
+    // Billable price math depends on labor_mode for labor items:
+    //   - hourly:        unit_cost (rate) × quantity (hours).  NO margin.
+    //   - flat_fee:      unit_cost (flat amount) × quantity (typically 1).  NO margin.
+    //   - margin_on_cost: existing behavior — labor cost × (1 + labor_margin/100).
+    // Materials always use the company's material margin, regardless of labor_mode.
     const lineItemRows = lineItems.map((item, index) => {
-      const margin = item.item_type === "labor" ? laborMargin : materialMargin;
-      const billablePrice = item.unit_cost * item.quantity * (1 + margin / 100);
+      let billablePrice: number;
+      let marginApplied: number;
+
+      if (item.item_type === "material") {
+        marginApplied = materialMargin;
+        billablePrice =
+          item.unit_cost * item.quantity * (1 + materialMargin / 100);
+      } else if (laborMode === "hourly" || laborMode === "flat_fee") {
+        // No margin in these modes — the AI's unit_cost is the billable amount
+        marginApplied = 0;
+        billablePrice = item.unit_cost * item.quantity;
+      } else {
+        // margin_on_cost — current default behavior
+        marginApplied = laborMargin;
+        billablePrice =
+          item.unit_cost * item.quantity * (1 + laborMargin / 100);
+      }
 
       return {
         quote_id,
@@ -283,7 +334,7 @@ export async function POST(request: NextRequest) {
         quantity: item.quantity,
         unit: item.unit,
         unit_cost: item.unit_cost,
-        margin_percent: margin,
+        margin_percent: marginApplied,
         billable_price: Math.round(billablePrice * 100) / 100,
         price_source: "ai_estimate",
         confidence_flag: item.confidence,

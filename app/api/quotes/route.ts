@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     const { data: company } = await supabase
       .from("companies")
       .select(
-        "default_labor_margin, default_material_margin, default_payment_terms, default_quote_validity_days"
+        "default_labor_margin, default_material_margin, default_payment_terms, default_quote_validity_days, default_labor_mode, default_labor_rate_per_hour"
       )
       .eq("id", profile.company_id)
       .single();
@@ -51,7 +51,12 @@ export async function POST(request: NextRequest) {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + validityDays);
 
-    // Create the quote with all inherited defaults
+    // Create the quote with all inherited defaults.
+    // job_type defaults to 'residential' (set by the migration) — the owner
+    // can flip to commercial in the Job Settings section. job_category
+    // starts null because the owner picks it before the chat starts.
+    // labor_mode and labor_rate_per_hour are inherited from the company,
+    // editable per quote in case the owner prices this job differently.
     const { data: quote, error } = await supabase
       .from("quotes")
       .insert({
@@ -63,6 +68,8 @@ export async function POST(request: NextRequest) {
         material_margin_default: company?.default_material_margin,
         payment_terms: company?.default_payment_terms,
         expires_at: expiresAt.toISOString(),
+        labor_mode: company?.default_labor_mode ?? "margin_on_cost",
+        labor_rate_per_hour: company?.default_labor_rate_per_hour ?? null,
       })
       .select("id")
       .single();

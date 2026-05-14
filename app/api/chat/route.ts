@@ -1,6 +1,11 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@/lib/supabase/server";
 import { getClarificationSystemPrompt } from "@/lib/prompts/clarification-agent";
+import type {
+  JobType,
+  JobCategory,
+  LaborMode,
+} from "@/lib/prompts/knowledge-base";
 import { NextRequest } from "next/server";
 
 // Claude Sonnet pricing (per token) as of 2025 — used to estimate API costs.
@@ -54,10 +59,14 @@ export async function POST(request: NextRequest) {
 
     // Verify this quote belongs to the user's company (RLS handles this too,
     // but an explicit check gives us a clearer error message).
-    // Also fetch address fields so we can extract a zip code for regional pricing.
+    // Also fetch the pre-chat filters (job_type, job_category, labor_mode,
+    // labor_rate_per_hour) so we can pass them to the clarification prompt
+    // as system-message context.
     const { data: quote } = await supabase
       .from("quotes")
-      .select("id, company_id, client_address, job_site_address")
+      .select(
+        "id, company_id, client_address, job_site_address, job_type, job_category, labor_mode, labor_rate_per_hour"
+      )
       .eq("id", quote_id)
       .single();
 
@@ -121,7 +130,13 @@ export async function POST(request: NextRequest) {
     const stream = anthropic.messages.stream({
       model: MODEL,
       max_tokens: 1024,
-      system: getClarificationSystemPrompt({ zipCode }),
+      system: getClarificationSystemPrompt({
+        zipCode,
+        jobType: (quote.job_type ?? undefined) as JobType | undefined,
+        jobCategory: (quote.job_category ?? null) as JobCategory | null,
+        laborMode: (quote.labor_mode ?? undefined) as LaborMode | undefined,
+        laborRatePerHour: quote.labor_rate_per_hour ?? null,
+      }),
       messages,
     });
 
