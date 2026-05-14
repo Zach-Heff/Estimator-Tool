@@ -28,7 +28,8 @@
       "Bash(xargs kill:*)",
       "Bash(lsof -ti:3001)",
       "Bash(xargs ls:*)",
-      "Bash(bunx:*)"
+      "Bash(bunx:*)",
+      "WebSearch"
     ]
   }
 }

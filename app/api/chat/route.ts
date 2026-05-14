@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
     const stream = anthropic.messages.stream({
       model: MODEL,
       max_tokens: 1024,
-      system: getClarificationSystemPrompt(zipCode),
+      system: getClarificationSystemPrompt({ zipCode }),
       messages,
     });
 

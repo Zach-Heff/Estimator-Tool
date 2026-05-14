@@ -144,7 +144,7 @@ export async function POST(request: NextRequest) {
       const result = await anthropic.messages.create({
         model: MODEL,
         max_tokens: 8192,
-        system: getQuoteGeneratorSystemPrompt(zipCode),
+        system: getQuoteGeneratorSystemPrompt({ zipCode }),
         messages: messagesToSend,
       });
 
@@ -197,7 +197,7 @@ export async function POST(request: NextRequest) {
       const reviewResult = await anthropic.messages.create({
         model: MODEL,
         max_tokens: 4096,
-        system: getQuoteReviewerSystemPrompt(),
+        system: getQuoteReviewerSystemPrompt({ zipCode }),
         messages: [
           {
             role: "user",
