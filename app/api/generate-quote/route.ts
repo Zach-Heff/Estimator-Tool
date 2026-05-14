@@ -14,6 +14,15 @@ const SONNET_INPUT_PRICE_PER_TOKEN = 3 / 1_000_000; // $3 per 1M input tokens
 const SONNET_OUTPUT_PRICE_PER_TOKEN = 15 / 1_000_000; // $15 per 1M output tokens
 const MODEL = "claude-sonnet-4-20250514";
 
+// Strip markdown code fences if Sonnet wraps its JSON output in ```json...```
+// (it sometimes does despite the prompt's "respond with ONLY valid JSON" rule;
+// the heavier Knowledge Base context seems to trigger this more often).
+function extractJson(text: string): string {
+  const fenceMatch = text.match(/^```(?:json)?\s*([\s\S]*?)\s*```\s*$/);
+  if (fenceMatch) return fenceMatch[1];
+  return text.trim();
+}
+
 // Shape of each line item in Claude's JSON response
 interface AILineItem {
   item_type: "material" | "labor";
@@ -182,7 +191,7 @@ export async function POST(request: NextRequest) {
       totalOutputTokens += result.usage.output_tokens;
 
       try {
-        const parsed = JSON.parse(aiResponse);
+        const parsed = JSON.parse(extractJson(aiResponse));
         if (!parsed.line_items || !Array.isArray(parsed.line_items)) {
           throw new Error("Missing line_items array");
         }
@@ -247,7 +256,7 @@ export async function POST(request: NextRequest) {
         .map((block) => block.text)
         .join("");
 
-      const review = JSON.parse(reviewResponse);
+      const review = JSON.parse(extractJson(reviewResponse));
 
       // Apply corrections if the reviewer found issues
       if (review.status === "corrections_needed" && Array.isArray(review.corrections)) {
