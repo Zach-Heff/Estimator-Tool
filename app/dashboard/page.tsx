@@ -138,9 +138,44 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             {quotes.length === 0 ? (
-              <p className="text-muted-foreground">
-                No quotes yet. Click &quot;+ New Quote&quot; to get started!
-              </p>
+              <div className="rounded-lg bg-blue-50 p-6">
+                <p className="mb-3 font-semibold text-blue-900">
+                  Welcome! Here&apos;s how QuoteCraft works:
+                </p>
+                <ol className="ml-1 space-y-2 text-sm text-blue-900">
+                  <li className="flex gap-3">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">
+                      1
+                    </span>
+                    <span>
+                      <strong>Pick your job settings</strong> — residential or
+                      commercial, the type of work, and how you price labor.
+                    </span>
+                  </li>
+                  <li className="flex gap-3">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">
+                      2
+                    </span>
+                    <span>
+                      <strong>Describe the scope</strong> — type or paste it
+                      in. The AI asks follow-up questions until it has what it
+                      needs.
+                    </span>
+                  </li>
+                  <li className="flex gap-3">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">
+                      3
+                    </span>
+                    <span>
+                      <strong>Review and approve</strong> — edit any line
+                      items, then download a branded PDF.
+                    </span>
+                  </li>
+                </ol>
+                <p className="mt-4 text-sm text-blue-800">
+                  Click <strong>+ New Quote</strong> above to start.
+                </p>
+              </div>
             ) : (
               <div className="space-y-2">
                 {quotes.map((q) => {

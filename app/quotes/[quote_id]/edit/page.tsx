@@ -390,10 +390,24 @@ function ScopeInput({
         <CardTitle className="text-lg">Scope of Work</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="rounded-md bg-blue-50 p-3 text-sm text-blue-900">
+          <p className="font-medium">
+            Describe the job like you&apos;d tell a coworker on the phone.
+          </p>
+          <p className="mt-1 text-blue-800">
+            The AI will ask follow-up questions to fill in the gaps. Voice-to-text
+            is fine — it doesn&apos;t need to be cleaned up.
+          </p>
+          <p className="mt-2 text-xs italic text-blue-700">
+            Example: &ldquo;Upgrading 100A panel to 200A in a 1950s house in
+            Springfield, attached garage panel, plus running a new 50A circuit
+            for an EV charger in the garage.&rdquo;
+          </p>
+        </div>
         <Textarea
           value={scope}
           onChange={(e) => setScope(e.target.value)}
-          placeholder="Describe the scope of work. You can paste raw voice-to-text here — it doesn't need to be cleaned up."
+          placeholder="Type or paste the scope of work here..."
           rows={8}
           className="resize-y"
         />
