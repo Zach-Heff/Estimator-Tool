@@ -14,6 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { TaxHelperDialog } from "@/components/tax-helper-dialog";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface CompanyDetails {
@@ -223,10 +224,14 @@ function QuotingDefaultsStep({
   data,
   onChange,
   errors,
+  zipCode,
 }: {
   data: QuotingDefaults;
   onChange: (d: QuotingDefaults) => void;
   errors: Record<string, string>;
+  // Passed down from Step 1 so the Tax Helper can prefill the user's
+  // location and avoid the "where do I live?" extra step.
+  zipCode: string;
 }) {
   return (
     <>
@@ -337,18 +342,13 @@ function QuotingDefaultsStep({
             {errors.taxRate && (
               <p className="text-sm text-destructive">{errors.taxRate}</p>
             )}
-            <p className="text-xs text-muted-foreground">
-              Look up your local rate at{" "}
-              <a
-                href="https://www.salestaxhandbook.com/"
-                target="_blank"
-                rel="noreferrer"
-                className="underline"
-              >
-                salestaxhandbook.com
-              </a>
-              .
-            </p>
+            <div className="text-xs text-muted-foreground">
+              Not sure of your rate?{" "}
+              <TaxHelperDialog
+                locationHint={zipCode || null}
+                triggerLabel="Ask the tax helper"
+              />
+            </div>
           </div>
           <div className="space-y-2">
             <Label htmlFor="taxBasis">What to tax</Label>
@@ -708,6 +708,7 @@ export default function OnboardingPage() {
             data={quotingDefaults}
             onChange={setQuotingDefaults}
             errors={errors}
+            zipCode={companyDetails.zipCode}
           />
         )}
         {step === 3 && (
