@@ -32,6 +32,10 @@ interface QuotingDefaults {
   materialMargin: number;
   paymentTerms: string;
   quoteValidityDays: number;
+  // Tax: rate (as a percentage, e.g., 9.375) + basis (what to tax).
+  // taxRate can be empty string to mean "not set"; we save it as null in that case.
+  taxRate: string;
+  taxBasis: "materials" | "subtotal" | "none";
 }
 
 // ─── Progress Bar ─────────────────────────────────────────────────────────────
@@ -309,6 +313,69 @@ function QuotingDefaultsStep({
             </p>
           )}
         </div>
+
+        {/* Tax rate + basis. Stored at the company level; can be overridden per quote.
+            Leave rate blank if you don't charge tax. */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="taxRate">
+              Sales tax rate %{" "}
+              <span className="font-normal text-muted-foreground">
+                (optional)
+              </span>
+            </Label>
+            <Input
+              id="taxRate"
+              type="number"
+              min={0}
+              max={20}
+              step={0.001}
+              placeholder="e.g., 9.375"
+              value={data.taxRate}
+              onChange={(e) => onChange({ ...data, taxRate: e.target.value })}
+            />
+            {errors.taxRate && (
+              <p className="text-sm text-destructive">{errors.taxRate}</p>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Look up your local rate at{" "}
+              <a
+                href="https://www.salestaxhandbook.com/"
+                target="_blank"
+                rel="noreferrer"
+                className="underline"
+              >
+                salestaxhandbook.com
+              </a>
+              .
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="taxBasis">What to tax</Label>
+            <select
+              id="taxBasis"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              value={data.taxBasis}
+              onChange={(e) =>
+                onChange({
+                  ...data,
+                  taxBasis: e.target.value as
+                    | "materials"
+                    | "subtotal"
+                    | "none",
+                })
+              }
+            >
+              <option value="materials">
+                Materials only (typical — most US states)
+              </option>
+              <option value="subtotal">
+                Full subtotal (materials + labor)
+              </option>
+              <option value="none">No tax (tax-exempt)</option>
+            </select>
+          </div>
+        </div>
       </CardContent>
     </>
   );
@@ -397,6 +464,8 @@ export default function OnboardingPage() {
     paymentTerms:
       "50% due upon acceptance, balance due upon completion",
     quoteValidityDays: 30,
+    taxRate: "",
+    taxBasis: "materials",
   });
 
   const [priceListFile, setPriceListFile] = useState<File | null>(null);
@@ -477,6 +546,13 @@ export default function OnboardingPage() {
       quotingDefaults.quoteValidityDays > 365
     )
       newErrors.quoteValidityDays = "Must be between 1 and 365 days";
+    // Tax rate is optional, but if set must be a sensible % (0–20).
+    if (quotingDefaults.taxRate.trim() !== "") {
+      const rate = parseFloat(quotingDefaults.taxRate);
+      if (isNaN(rate) || rate < 0 || rate > 20) {
+        newErrors.taxRate = "Must be a number between 0 and 20";
+      }
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }
@@ -578,6 +654,13 @@ export default function OnboardingPage() {
           default_material_margin: quotingDefaults.materialMargin,
           default_payment_terms: quotingDefaults.paymentTerms,
           default_quote_validity_days: quotingDefaults.quoteValidityDays,
+          // Save the tax defaults — null rate means "not set", which downstream
+          // means "use 0%" / hide the tax row entirely in the PDF.
+          default_tax_rate:
+            quotingDefaults.taxRate.trim() === ""
+              ? null
+              : parseFloat(quotingDefaults.taxRate),
+          default_tax_basis: quotingDefaults.taxBasis,
         })
         .eq("id", companyId);
 

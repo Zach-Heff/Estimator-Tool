@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
+import ReactMarkdown from "react-markdown";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,12 +11,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import QuoteTable from "@/components/quote-table";
 import PdfPreviewModal from "@/components/pdf-preview-modal";
+import { MicButton } from "@/components/mic-button";
 import type { Quote, ChatMessage, QuoteLineItem } from "@/types/database";
 import {
   CATEGORY_LABELS,
   type JobType,
   type JobCategory,
   type LaborMode,
+  type TaxBasis,
 } from "@/lib/prompts/knowledge-base";
 
 // ─── Client Info Section ────────────────────────────────────────────────────
@@ -159,6 +162,12 @@ function JobSettingsSection({
   const [laborRate, setLaborRate] = useState<string>(
     quote.labor_rate_per_hour != null ? String(quote.labor_rate_per_hour) : ""
   );
+  const [taxRate, setTaxRate] = useState<string>(
+    quote.tax_rate != null ? String(quote.tax_rate) : ""
+  );
+  const [taxBasis, setTaxBasis] = useState<TaxBasis>(
+    (quote.tax_basis as TaxBasis | null) ?? "materials"
+  );
 
   function handleJobTypeChange(value: JobType) {
     setJobType(value);
@@ -186,6 +195,23 @@ function JobSettingsSection({
     if (!isNaN(num) && num > 0) {
       onFieldSave("labor_rate_per_hour", num);
     }
+  }
+
+  function handleTaxRateBlur() {
+    const trimmed = taxRate.trim();
+    if (trimmed === "") {
+      onFieldSave("tax_rate", null);
+      return;
+    }
+    const num = parseFloat(trimmed);
+    if (!isNaN(num) && num >= 0 && num <= 20) {
+      onFieldSave("tax_rate", num);
+    }
+  }
+
+  function handleTaxBasisChange(value: TaxBasis) {
+    setTaxBasis(value);
+    onFieldSave("tax_basis", value);
   }
 
   return (
@@ -328,6 +354,59 @@ function JobSettingsSection({
               </div>
             )}
           </div>
+
+          {/* Sales tax: rate + basis. Inherits from company defaults; editable
+              per-quote so the owner can handle one-off jobs (different state,
+              tax-exempt customer, etc.). */}
+          <div>
+            <Label className="mb-2 block">Sales tax (this quote)</Label>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label
+                  htmlFor="tax_rate"
+                  className="text-xs font-normal text-muted-foreground"
+                >
+                  Rate %
+                </Label>
+                <Input
+                  id="tax_rate"
+                  type="number"
+                  inputMode="decimal"
+                  step="0.001"
+                  min="0"
+                  max="20"
+                  value={taxRate}
+                  onChange={(e) => setTaxRate(e.target.value)}
+                  onBlur={handleTaxRateBlur}
+                  placeholder="e.g., 9.375"
+                />
+              </div>
+              <div>
+                <Label
+                  htmlFor="tax_basis"
+                  className="text-xs font-normal text-muted-foreground"
+                >
+                  Apply to
+                </Label>
+                <select
+                  id="tax_basis"
+                  value={taxBasis}
+                  onChange={(e) =>
+                    handleTaxBasisChange(e.target.value as TaxBasis)
+                  }
+                  className="flex h-10 w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                >
+                  <option value="materials">Materials only</option>
+                  <option value="subtotal">Full subtotal</option>
+                  <option value="none">No tax</option>
+                </select>
+              </div>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Leave rate blank or pick &quot;No tax&quot; to hide the tax line
+              on the PDF.
+            </p>
+          </div>
         </CardContent>
       )}
     </Card>
@@ -362,13 +441,72 @@ function ChatBubble({
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
       <div
-        className={`max-w-[80%] whitespace-pre-wrap rounded-2xl px-4 py-3 ${
+        className={`max-w-[80%] rounded-2xl px-4 py-3 ${
           isUser
-            ? "rounded-br-sm bg-blue-600 text-white"
+            ? "whitespace-pre-wrap rounded-br-sm bg-blue-600 text-white"
             : "rounded-bl-sm bg-zinc-100 text-zinc-900"
         }`}
       >
-        {content}
+        {isUser ? (
+          // User input shouldn't be rendered as markdown — XSS surface + the
+          // user typed plain text. whitespace-pre-wrap (above) preserves
+          // line breaks they entered.
+          content
+        ) : (
+          // Assistant responses render with markdown so **bold** and lists
+          // display properly. Lock down disallowedElements to anything that
+          // could navigate / load remote content / inject scripts.
+          <ReactMarkdown
+            disallowedElements={[
+              "a",
+              "img",
+              "script",
+              "iframe",
+              "style",
+              "html",
+              "body",
+              "link",
+            ]}
+            components={{
+              p: ({ children }) => (
+                <p className="mb-2 last:mb-0">{children}</p>
+              ),
+              ul: ({ children }) => (
+                <ul className="mb-2 ml-5 list-disc last:mb-0">{children}</ul>
+              ),
+              ol: ({ children }) => (
+                <ol className="mb-2 ml-5 list-decimal last:mb-0">
+                  {children}
+                </ol>
+              ),
+              li: ({ children }) => (
+                <li className="mb-1 last:mb-0">{children}</li>
+              ),
+              strong: ({ children }) => (
+                <strong className="font-semibold">{children}</strong>
+              ),
+              em: ({ children }) => <em className="italic">{children}</em>,
+              code: ({ children }) => (
+                <code className="rounded bg-zinc-200 px-1 py-0.5 text-[0.85em]">
+                  {children}
+                </code>
+              ),
+              // Treat headings as bold paragraphs — keeps the visual rhythm
+              // of the bubble consistent and avoids huge h1/h2 fonts.
+              h1: ({ children }) => (
+                <p className="mb-1 font-semibold">{children}</p>
+              ),
+              h2: ({ children }) => (
+                <p className="mb-1 font-semibold">{children}</p>
+              ),
+              h3: ({ children }) => (
+                <p className="mb-1 font-semibold">{children}</p>
+              ),
+            }}
+          >
+            {content}
+          </ReactMarkdown>
+        )}
       </div>
     </div>
   );
@@ -411,13 +549,28 @@ function ScopeInput({
           rows={8}
           className="resize-y"
         />
-        <Button
-          onClick={() => onSubmit(scope)}
-          disabled={disabled || !scope.trim()}
-          size="lg"
-        >
-          Start Chat
-        </Button>
+        {/* Action row: Start Chat + optional mic for voice-to-text dictation.
+            Mic is hidden entirely in browsers without Web Speech support. */}
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={() => onSubmit(scope)}
+            disabled={disabled || !scope.trim()}
+            size="lg"
+          >
+            Start Chat
+          </Button>
+          <MicButton
+            onTranscript={(t) =>
+              // Append final transcript chunks with a space separator so the
+              // user can keep speaking without losing what they already typed.
+              setScope((prev) => (prev ? prev + " " + t : t))
+            }
+            disabled={disabled}
+          />
+          <span className="text-xs text-muted-foreground">
+            Click the mic to dictate
+          </span>
+        </div>
       </CardContent>
     </Card>
   );
@@ -445,16 +598,44 @@ function ChatInterface({
 }) {
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Max height for the message textarea. ~180px ≈ 6 rows at default font.
+  // Scrollbar kicks in beyond that so the page doesn't get pushed around.
+  const MAX_INPUT_HEIGHT_PX = 180;
 
   // Auto-scroll to the bottom whenever messages change or streaming content updates
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, streamingContent]);
 
+  // Resize the textarea to fit its content, up to MAX_INPUT_HEIGHT_PX.
+  // Wrapped in rAF to avoid React 19 strict-mode flicker (setting height
+  // synchronously during onChange can race with React's render cycle).
+  function resizeInput() {
+    const el = inputRef.current;
+    if (!el) return;
+    requestAnimationFrame(() => {
+      el.style.height = "auto";
+      el.style.height =
+        Math.min(el.scrollHeight, MAX_INPUT_HEIGHT_PX) + "px";
+    });
+  }
+
+  function handleInputChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
+    setInput(e.target.value);
+    resizeInput();
+  }
+
   function handleSend() {
     if (!input.trim() || isStreaming) return;
     onSendMessage(input.trim());
     setInput("");
+    // Reset the textarea height after sending so it goes back to 1 row.
+    requestAnimationFrame(() => {
+      const el = inputRef.current;
+      if (el) el.style.height = "auto";
+    });
   }
 
   return (
@@ -509,22 +690,39 @@ function ChatInterface({
         </div>
       )}
 
-      {/* Message input area */}
+      {/* Message input area — auto-expanding textarea (1–6 rows) so long
+          replies are visible while typing instead of getting clipped. */}
       <div className="border-t p-4">
-        <div className="flex gap-2">
-          <Input
+        <div className="flex items-end gap-2">
+          <Textarea
+            ref={inputRef}
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={handleInputChange}
             onKeyDown={(e) => {
+              // Enter sends; Shift+Enter inserts a newline (standard chat UX)
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
                 handleSend();
               }
             }}
-            placeholder="Type your reply..."
+            placeholder="Type your reply... (Shift+Enter for newline)"
+            disabled={isStreaming || isGenerating}
+            rows={1}
+            className="min-h-[40px] resize-none overflow-y-auto"
+          />
+          <MicButton
+            onTranscript={(t) => {
+              // Append + trigger the textarea resize so the input expands
+              // to fit the dictated text.
+              setInput((prev) => (prev ? prev + " " + t : t));
+              resizeInput();
+            }}
             disabled={isStreaming || isGenerating}
           />
-          <Button onClick={handleSend} disabled={isStreaming || isGenerating || !input.trim()}>
+          <Button
+            onClick={handleSend}
+            disabled={isStreaming || isGenerating || !input.trim()}
+          >
             Send
           </Button>
         </div>
@@ -925,6 +1123,10 @@ export default function QuoteEditPage() {
                   <PdfPreviewModal
                     quoteId={quoteId}
                     quoteNumber={quote.quote_number}
+                    clientName={quote.client_name}
+                    createdAt={
+                      quote.created_at || new Date().toISOString()
+                    }
                     open={pdfModalOpen}
                     onOpenChange={setPdfModalOpen}
                   />

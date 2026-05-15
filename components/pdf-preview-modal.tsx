@@ -11,10 +11,15 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { makePdfFilename } from "@/lib/utils/pdf-filename";
 
 interface PdfPreviewModalProps {
   quoteId: string;
-  quoteNumber: string; // Used for the download filename
+  quoteNumber: string;
+  // Used (together with quoteNumber + createdAt) to build a human-readable
+  // download filename. Pass null/undefined if the quote has no client yet.
+  clientName: string | null;
+  createdAt: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -22,6 +27,8 @@ interface PdfPreviewModalProps {
 export default function PdfPreviewModal({
   quoteId,
   quoteNumber,
+  clientName,
+  createdAt,
   open,
   onOpenChange,
 }: PdfPreviewModalProps) {
@@ -73,12 +80,15 @@ export default function PdfPreviewModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // Trigger a file download by creating a temporary <a> element
+  // Trigger a file download by creating a temporary <a> element.
+  // `<a download>` is the most reliable way to control the filename across
+  // browsers — the Chrome PDF viewer's own download icon ignores headers
+  // when the source is a blob URL, so we encourage users to use THIS button.
   function handleDownload() {
     if (!pdfUrl) return;
     const a = document.createElement("a");
     a.href = pdfUrl;
-    a.download = `Quote-${quoteNumber}.pdf`;
+    a.download = makePdfFilename(quoteNumber, clientName, createdAt);
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

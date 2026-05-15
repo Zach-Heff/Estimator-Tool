@@ -127,6 +127,8 @@ export type Database = {
           default_material_margin: number | null
           default_payment_terms: string | null
           default_quote_validity_days: number | null
+          default_tax_basis: string | null
+          default_tax_rate: number | null
           id: string
           license_number: string | null
           logo_url: string | null
@@ -145,6 +147,8 @@ export type Database = {
           default_material_margin?: number | null
           default_payment_terms?: string | null
           default_quote_validity_days?: number | null
+          default_tax_basis?: string | null
+          default_tax_rate?: number | null
           id?: string
           license_number?: string | null
           logo_url?: string | null
@@ -163,6 +167,8 @@ export type Database = {
           default_material_margin?: number | null
           default_payment_terms?: string | null
           default_quote_validity_days?: number | null
+          default_tax_basis?: string | null
+          default_tax_rate?: number | null
           id?: string
           license_number?: string | null
           logo_url?: string | null
@@ -332,6 +338,7 @@ export type Database = {
           scope_description: string | null
           status: string | null
           subtotal: number | null
+          tax_basis: string | null
           tax_rate: number | null
           total: number | null
           total_tokens_used: number | null
@@ -362,6 +369,7 @@ export type Database = {
           scope_description?: string | null
           status?: string | null
           subtotal?: number | null
+          tax_basis?: string | null
           tax_rate?: number | null
           total?: number | null
           total_tokens_used?: number | null
@@ -392,6 +400,7 @@ export type Database = {
           scope_description?: string | null
           status?: string | null
           subtotal?: number | null
+          tax_basis?: string | null
           tax_rate?: number | null
           total?: number | null
           total_tokens_used?: number | null

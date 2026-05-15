@@ -34,6 +34,12 @@ export type JobCategory =
 
 export type LaborMode = "hourly" | "margin_on_cost" | "flat_fee";
 
+// How tax is applied on the quote:
+//   - materials: tax × materials_subtotal (typical US — most states don't tax labor)
+//   - subtotal:  tax × (materials + labor) (some states tax labor too: WA, HI, NM, SD)
+//   - none:      no tax row rendered at all
+export type TaxBasis = "materials" | "subtotal" | "none";
+
 // Context passed into the prompt-builder functions. All fields except zipCode
 // are optional so existing callers (Step 2) don't break before Step 3 wires
 // the new params through.
