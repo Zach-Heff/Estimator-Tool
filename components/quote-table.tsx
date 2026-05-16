@@ -168,8 +168,8 @@ function QuoteRow({
         {item.unit}
       </td>
 
-      {/* Unit Cost — editable */}
-      <td className="px-3 py-2 w-24">
+      {/* Unit Cost — editable, internal-only (not shown on client PDF) */}
+      <td className="px-3 py-2 w-24 bg-zinc-50/70">
         <Input
           type="number"
           value={unitCost}
@@ -183,8 +183,8 @@ function QuoteRow({
         />
       </td>
 
-      {/* Margin % — editable */}
-      <td className="px-3 py-2 w-20">
+      {/* Margin % — editable, internal-only (not shown on client PDF) */}
+      <td className="px-3 py-2 w-20 bg-zinc-50/70">
         <Input
           type="number"
           value={marginPercent}
@@ -348,14 +348,31 @@ export default function QuoteTable({
     <div className="overflow-x-auto rounded-lg border bg-white">
       <table className="w-full text-left">
         <thead>
+          {/*
+            Unit Cost and Margin % are INTERNAL columns — they show how the
+            contractor builds up the price, but never appear on the
+            client-facing PDF. The muted background tint on those two cells
+            (here and on each row body cell below) signals that visually.
+            The Billable Price column is what the client actually sees.
+          */}
           <tr className="border-b bg-zinc-50 text-xs font-medium uppercase tracking-wider text-zinc-500">
             <th className="px-3 py-3">Type</th>
             <th className="px-3 py-3">Category</th>
             <th className="px-3 py-3">Description</th>
             <th className="px-3 py-3 text-right">Qty</th>
             <th className="px-3 py-3">Unit</th>
-            <th className="px-3 py-3 text-right">Unit Cost</th>
-            <th className="px-3 py-3 text-right">Margin %</th>
+            <th
+              className="px-3 py-3 text-right bg-zinc-100/70"
+              title="Internal only — your client doesn't see this column"
+            >
+              Unit Cost
+            </th>
+            <th
+              className="px-3 py-3 text-right bg-zinc-100/70"
+              title="Internal only — your client doesn't see this column"
+            >
+              Margin %
+            </th>
             <th className="px-3 py-3 text-right">Billable Price</th>
             <th className="px-3 py-3"></th>
           </tr>
