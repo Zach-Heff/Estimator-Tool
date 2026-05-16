@@ -1,0 +1,87 @@
+name,sku,unit,price
+"12/2 NM-B Romex Cable, 250ft roll",NMB-12-2-250,roll,168.00
+"14/2 NM-B Romex Cable, 250ft roll",NMB-14-2-250,roll,102.00
+"10/2 NM-B Romex Cable, 250ft roll",NMB-10-2-250,roll,248.00
+"12/3 NM-B Romex Cable, 250ft roll",NMB-12-3-250,roll,225.00
+"6/3 NM-B Romex Cable, 125ft roll",NMB-6-3-125,roll,385.00
+"8/3 NM-B Romex Cable, 125ft roll",NMB-8-3-125,roll,295.00
+"THHN 12 AWG stranded wire, black, 500ft",THHN-12-BK-500,roll,122.00
+"THHN 12 AWG stranded wire, white, 500ft",THHN-12-WT-500,roll,122.00
+"THHN 12 AWG stranded wire, green, 500ft",THHN-12-GR-500,roll,122.00
+"THHN 10 AWG stranded wire, black, 500ft",THHN-10-BK-500,roll,178.00
+"UF-B 12/2 underground cable, 100ft",UFB-12-2-100,roll,148.00
+"Service entrance cable 4/0 SER 4-wire",SER-40-4,ft,12.85
+"1/2 inch EMT conduit, 10ft stick",EMT-12-10,stick,9.75
+"3/4 inch EMT conduit, 10ft stick",EMT-34-10,stick,13.25
+"1 inch EMT conduit, 10ft stick",EMT-100-10,stick,19.85
+"1/2 inch EMT compression connector",EMTC-12,each,1.95
+"1/2 inch EMT compression coupling",EMTCP-12,each,2.35
+"1/2 inch EMT 90 degree elbow",EMT-12-90,each,4.65
+"1/2 inch PVC conduit Schedule 40, 10ft",PVC-12-10,stick,4.85
+"3/4 inch PVC conduit Schedule 40, 10ft",PVC-34-10,stick,6.65
+"1 inch PVC conduit Schedule 40, 10ft",PVC-100-10,stick,9.50
+"1/2 inch flexible metal conduit, 25ft",FLEX-12-25,roll,22.50
+"3/4 inch liquid-tight flex conduit, 100ft",LTFX-34-100,roll,148.00
+"15A single-pole circuit breaker Square D Homeline",HOM-115,each,12.75
+"20A single-pole circuit breaker Square D Homeline",HOM-120,each,13.95
+"30A single-pole circuit breaker Square D Homeline",HOM-130,each,15.75
+"40A double-pole circuit breaker Square D Homeline",HOM-240,each,28.50
+"50A double-pole circuit breaker Square D Homeline",HOM-250,each,32.50
+"60A double-pole circuit breaker Square D Homeline",HOM-260,each,38.50
+"20A AFCI circuit breaker",HOM-120-AFCI,each,52.50
+"20A GFCI circuit breaker",HOM-120-GFCI,each,58.50
+"20A dual-function AFCI/GFCI breaker",HOM-120-DF,each,76.00
+"15A duplex receptacle outlet, white",R15-DUP-WT,each,1.95
+"20A duplex receptacle outlet, white",R20-DUP-WT,each,4.65
+"20A duplex receptacle outlet, ivory",R20-DUP-IV,each,4.65
+"15A tamper-resistant duplex receptacle, white",R15-TR-WT,each,3.35
+"15A GFCI receptacle, white",R15-GFCI-WT,each,18.75
+"20A GFCI receptacle, white",R20-GFCI-WT,each,22.50
+"20A weather-resistant GFCI receptacle",R20-WR-GFCI,each,28.95
+"USB-C dual outlet receptacle, 20A",R-USBC,each,38.50
+"Single-pole light switch, white",SW-1P-WT,each,1.85
+"3-way light switch, white",SW-3W-WT,each,4.35
+"4-way light switch, white",SW-4W-WT,each,9.75
+"Single-pole LED-compatible dimmer switch",SW-DIM-LED,each,18.50
+"Decora 3-way LED dimmer",SW-DIM-3W,each,28.50
+"Occupancy sensor wall switch",SW-OCC,each,32.50
+"1-gang plastic switch/outlet box",BOX-1G-PL,each,0.95
+"2-gang plastic switch/outlet box",BOX-2G-PL,each,1.55
+"3-gang plastic switch/outlet box",BOX-3G-PL,each,2.45
+"1-gang metal switch box",BOX-1G-MT,each,2.45
+"4 inch octagon metal junction box",BOX-OCT4,each,3.65
+"4-square metal junction box",BOX-4SQ,each,4.45
+"Old-work 1-gang remodel box",BOX-OW-1G,each,1.95
+"Old-work 2-gang remodel box",BOX-OW-2G,each,3.25
+"Ceiling fan rated brace box",BOX-CFB,each,9.75
+"1-gang Decora wallplate, white",WP-1G-DEC-WT,each,0.95
+"2-gang Decora wallplate, white",WP-2G-DEC-WT,each,1.75
+"1-gang weatherproof outlet cover",WP-WR-1G,each,8.75
+"In-use weatherproof outlet cover",WP-INUSE-1G,each,15.50
+"4 inch LED recessed downlight, 3000K",REC-LED-4-3K,each,22.50
+"6 inch LED recessed downlight, 3000K",REC-LED-6-3K,each,26.50
+"6 inch LED recessed downlight, 4000K",REC-LED-6-4K,each,26.50
+"2x4 LED flat panel light fixture, 4000K",PNL-LED-24-4K,each,79.00
+"8ft LED shop light fixture",SHOP-LED-8,each,86.00
+"A19 LED bulb, 60W equivalent, 2700K, 4-pack",BULB-A19-4PK,pack,12.50
+"BR30 LED flood bulb, 65W equivalent, 6-pack",BULB-BR30-6PK,pack,22.50
+"Vanity light fixture, 3-light brushed nickel",FIX-VAN-3-BN,each,96.00
+"Ceiling fan with light, 52 inch brushed nickel",FAN-52-BN,each,188.00
+"Pendant light fixture, brushed bronze",FIX-PEND-BZ,each,68.00
+"100A 20-circuit main breaker load center",PNL-100-20,each,168.00
+"200A 40-circuit main breaker load center",PNL-200-40,each,325.00
+"60A 12-circuit subpanel",PNL-SUB-60-12,each,98.00
+"100A 24-circuit subpanel",PNL-SUB-100-24,each,148.00
+"Generator interlock kit Square D Homeline",INT-HOM,each,68.50
+"Red wire nuts, 100-pack",WN-RED-100,box,12.75
+"Yellow wire nuts, 100-pack",WN-YEL-100,box,9.75
+"Blue wire nuts, 100-pack",WN-BLU-100,box,11.50
+"Cable staples 1/2 inch for NM-B, 100-pack",STAPLE-12-100,box,4.75
+"Drywall anchors, 50-pack",ANCH-DW-50,pack,6.75
+"Electrical tape, vinyl, black, 3/4 inch x 60ft",TAPE-VINYL-BK,each,1.85
+"Wire pulling lubricant, 1 quart",LUBE-PULL-1Q,each,12.75
+"1/2 inch cord grip strain relief connector",CG-12,each,4.65
+"Smoke and CO combo detector, hardwired",DET-SMOKE-CO,each,48.50
+"Hardwired smoke detector, 10-year battery backup",DET-SMOKE,each,32.00
+"Doorbell transformer, 16V 30VA",XFRM-DB-16,each,18.00
+"Hardwired chime, white",CHIME-WT,each,28.50

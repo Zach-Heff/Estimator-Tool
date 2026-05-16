@@ -1083,6 +1083,19 @@ export default function QuoteEditPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">Quote Line Items</CardTitle>
+                {/*
+                  Friend-evaluation feedback (2026-05-15): contractors needed
+                  to know which columns are internal vs. client-facing without
+                  having to preview the PDF every time. The Unit Cost and
+                  Margin % columns get a muted tint in the table below; this
+                  subtitle explains the convention up front.
+                */}
+                <p className="text-xs text-muted-foreground mt-1">
+                  Internal pricing view. Your client only sees the{" "}
+                  <strong className="text-zinc-700">Billable Price</strong>{" "}
+                  column on the PDF — Unit Cost and Margin % stay between you
+                  and your team.
+                </p>
               </CardHeader>
               <CardContent>
                 <QuoteTable
