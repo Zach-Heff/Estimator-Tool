@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import QuoteTable from "@/components/quote-table";
 import PdfPreviewModal from "@/components/pdf-preview-modal";
 import { MicButton } from "@/components/mic-button";
+import { TaxHelperDialog } from "@/components/tax-helper-dialog";
 import type { Quote, ChatMessage, QuoteLineItem } from "@/types/database";
 import {
   CATEGORY_LABELS,
@@ -402,10 +403,21 @@ function JobSettingsSection({
                 </select>
               </div>
             </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Leave rate blank or pick &quot;No tax&quot; to hide the tax line
-              on the PDF.
-            </p>
+            <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs text-muted-foreground">
+                Leave rate blank or pick &quot;No tax&quot; to hide the tax
+                line on the PDF.
+              </p>
+              {/* Pre-fill the helper with the job site address (or fall back
+                  to client address) so the AI knows which jurisdiction the
+                  owner is asking about. */}
+              <TaxHelperDialog
+                locationHint={
+                  quote.job_site_address || quote.client_address || null
+                }
+                triggerLabel="Ask the tax helper"
+              />
+            </div>
           </div>
         </CardContent>
       )}
