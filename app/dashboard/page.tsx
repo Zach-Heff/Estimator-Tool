@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,9 @@ export default function DashboardPage() {
   const router = useRouter();
   const supabase = createClient();
   const [userName, setUserName] = useState("");
+  // Track the user's role so admin-only links (like Price List) only render
+  // for admins. Default to non-admin until we've loaded the profile.
+  const [isAdmin, setIsAdmin] = useState(false);
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [loading, setLoading] = useState(true);
   const [creatingQuote, setCreatingQuote] = useState(false);
@@ -26,11 +30,14 @@ export default function DashboardPage() {
         return;
       }
 
-      // Load user profile and their quotes in parallel
+      // Load user profile and their quotes in parallel.
+      // We pull `role` so we can conditionally show the admin-only Price
+      // List link in the header — the page itself also gates on admin
+      // server-side, so this is purely a UX hint.
       const [profileResult, quotesResult] = await Promise.all([
         supabase
           .from("users")
-          .select("full_name")
+          .select("full_name, role")
           .eq("id", user.id)
           .single(),
         supabase
@@ -40,6 +47,7 @@ export default function DashboardPage() {
       ]);
 
       setUserName(profileResult.data?.full_name || "there");
+      setIsAdmin(profileResult.data?.role === "admin");
       setQuotes(quotesResult.data || []);
       setLoading(false);
     }
@@ -115,9 +123,19 @@ export default function DashboardPage() {
         {/* Header with welcome message and actions */}
         <div className="mb-8 flex items-center justify-between">
           <h1 className="text-2xl font-bold">Welcome, {userName}!</h1>
-          <Button variant="outline" onClick={handleLogout}>
-            Log out
-          </Button>
+          <div className="flex gap-2">
+            {/* Admin-only entry to /settings/price-list. Estimators don't see
+                this; the destination page also enforces the role check
+                server-side, so a hand-typed URL still redirects them away. */}
+            {isAdmin && (
+              <Link href="/settings/price-list">
+                <Button variant="outline">Price List</Button>
+              </Link>
+            )}
+            <Button variant="outline" onClick={handleLogout}>
+              Log out
+            </Button>
+          </div>
         </div>
 
         {/* New Quote button */}
