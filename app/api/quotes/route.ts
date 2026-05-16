@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     const { data: company } = await supabase
       .from("companies")
       .select(
-        "default_labor_margin, default_material_margin, default_payment_terms, default_quote_validity_days, default_labor_mode, default_labor_rate_per_hour"
+        "default_labor_margin, default_material_margin, default_payment_terms, default_quote_validity_days, default_labor_mode, default_labor_rate_per_hour, default_tax_rate, default_tax_basis"
       )
       .eq("id", profile.company_id)
       .single();
@@ -70,6 +70,11 @@ export async function POST(request: NextRequest) {
         expires_at: expiresAt.toISOString(),
         labor_mode: company?.default_labor_mode ?? "margin_on_cost",
         labor_rate_per_hour: company?.default_labor_rate_per_hour ?? null,
+        // Inherit tax defaults — owner can override per quote in the Job
+        // Settings section. tax_rate stays null if the company didn't set one
+        // (PDF interprets null/0 as "hide the tax row").
+        tax_rate: company?.default_tax_rate ?? null,
+        tax_basis: company?.default_tax_basis ?? "materials",
       })
       .select("id")
       .single();

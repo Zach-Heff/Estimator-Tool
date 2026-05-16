@@ -31,6 +31,7 @@ export interface QuotePDFProps {
     client_address: string | null;
     job_site_address: string | null;
     tax_rate: number;
+    tax_basis: "materials" | "subtotal" | "none";
   };
   estimatorName: string;
   lineItems: {
@@ -174,6 +175,19 @@ const s = StyleSheet.create({
   },
   tableRowAlt: { backgroundColor: ACCENT_LIGHT },
   tableCell: { fontSize: 9 },
+  // Category total row — shown after the last item in each category when
+  // there's more than one category in the quote. Uses a strong top border
+  // + bold text instead of a background color (background would collide
+  // with the tableRowAlt zebra stripe, also ACCENT_LIGHT).
+  categoryTotalRow: {
+    flexDirection: "row",
+    paddingVertical: 7,
+    paddingHorizontal: 8,
+    borderTopWidth: 1.5,
+    borderTopColor: ACCENT_DARK,
+    borderBottomWidth: 0.5,
+    borderBottomColor: BORDER,
+  },
 
   // Column widths (no margin column — margin is baked into the unit price for the client)
   colDesc: { width: "48%" },
@@ -182,10 +196,31 @@ const s = StyleSheet.create({
   colUnitCost: { width: "15%", textAlign: "right" as const },
   colTotal: { width: "15%", textAlign: "right" as const },
 
-  // ── Signature section ──
-  signatureSection: {
+  // ── Agreement + Signature section ──
+  // Both styled to fit cleanly together; the agreement statement sits
+  // immediately above the signature blocks and acts as legal hygiene.
+  agreementSection: {
     marginHorizontal: 40,
-    marginTop: 30,
+    marginTop: 20,
+    paddingTop: 10,
+    paddingHorizontal: 12,
+    paddingBottom: 10,
+    borderWidth: 0.5,
+    borderColor: BORDER,
+    borderRadius: 3,
+    backgroundColor: "#f8fafc",
+  },
+  agreementText: {
+    fontSize: 8.5,
+    fontStyle: "italic" as const,
+    color: DARK_TEXT,
+    lineHeight: 1.5,
+  },
+  signatureSection: {
+    // Tighter top margin so the signature fits on page 1 in more quotes.
+    // Old value: 30; saved ~15pt total height.
+    marginHorizontal: 40,
+    marginTop: 15,
     flexDirection: "row",
     gap: 40,
   },
@@ -196,7 +231,9 @@ const s = StyleSheet.create({
     color: LIGHT_TEXT,
     textTransform: "uppercase" as const,
     letterSpacing: 0.5,
-    marginBottom: 30,
+    // Old value: 30; now 18 to shrink the box height. The line + caption
+    // need ~16pt below, so total signature block stays usable.
+    marginBottom: 18,
   },
   signatureLine: {
     borderBottomWidth: 1,
@@ -321,13 +358,40 @@ export function QuoteDocument({
     }
   }
 
-  // Calculate totals
-  const subtotal = displayItems.reduce((sum, item) => {
-    return sum + item.unit_cost * item.quantity * (1 + item.margin_percent / 100);
-  }, 0);
+  // Calculate billed (margin-included) subtotals separately for materials and
+  // labor so the tax math can target the right basis. Most US states tax
+  // materials but not labor on residential service work.
+  let materialsSubtotal = 0;
+  let laborSubtotal = 0;
+  for (const item of displayItems) {
+    const billed =
+      item.unit_cost * item.quantity * (1 + item.margin_percent / 100);
+    if (item.item_type === "labor") {
+      laborSubtotal += billed;
+    } else {
+      materialsSubtotal += billed;
+    }
+  }
+  const subtotal = materialsSubtotal + laborSubtotal;
+
+  // Tax depends on basis: 'materials' (typical) taxes just materials;
+  // 'subtotal' taxes everything (WA/HI/NM/SD and similar); 'none' hides
+  // the row entirely. tax_rate of 0 also hides the row — see below.
   const taxRate = quote.tax_rate;
-  const taxAmount = Math.round(subtotal * (taxRate / 100) * 100) / 100;
+  const taxBasis = quote.tax_basis ?? "materials";
+  const taxableBase =
+    taxBasis === "materials"
+      ? materialsSubtotal
+      : taxBasis === "subtotal"
+        ? subtotal
+        : 0;
+  const taxAmount = Math.round(taxableBase * (taxRate / 100) * 100) / 100;
   const total = Math.round((subtotal + taxAmount) * 100) / 100;
+
+  // Hide the tax row in the summary box when there's nothing meaningful
+  // to show — keeps the PDF clean for tax-exempt jobs or contractors who
+  // haven't set a rate yet.
+  const showTaxRow = taxBasis !== "none" && taxRate > 0;
 
   const paymentTerms = company.default_payment_terms || "Due upon receipt";
   const validityDays = company.default_quote_validity_days || 30;
@@ -428,10 +492,15 @@ export function QuoteDocument({
                 <Text style={s.summaryLabel}>Subtotal</Text>
                 <Text style={s.summaryValue}>{usd(subtotal)}</Text>
               </View>
-              <View style={s.summaryRow}>
-                <Text style={s.summaryLabel}>Tax ({taxRate}%)</Text>
-                <Text style={s.summaryValue}>{usd(taxAmount)}</Text>
-              </View>
+              {showTaxRow && (
+                <View style={s.summaryRow}>
+                  <Text style={s.summaryLabel}>
+                    Tax ({taxRate}%
+                    {taxBasis === "materials" ? " on materials" : ""})
+                  </Text>
+                  <Text style={s.summaryValue}>{usd(taxAmount)}</Text>
+                </View>
+              )}
               <View style={[s.summaryRow, s.summaryRowLast]}>
                 <Text style={[s.summaryLabel, { fontFamily: "Helvetica-Bold" }]}>
                   Total
@@ -458,6 +527,17 @@ export function QuoteDocument({
             const items = grouped[cat];
             // Track row index within category for alternating colors
             let rowIdx = 0;
+            // Sum of billed prices across all items in this category — used
+            // for the "Category Total" row at the end of the group (only
+            // rendered when there's more than one category).
+            const categoryTotal = items.reduce(
+              (sum, item) =>
+                sum +
+                item.unit_cost *
+                  item.quantity *
+                  (1 + item.margin_percent / 100),
+              0
+            );
             return (
               <View key={cat}>
                 {/* Category section header — only show if more than one category */}
@@ -498,26 +578,69 @@ export function QuoteDocument({
                     </View>
                   );
                 })}
+
+                {/* Category total — only when the quote has multiple
+                    categories (otherwise it duplicates the summary box). */}
+                {categoryOrder.length > 1 && (
+                  <View style={s.categoryTotalRow}>
+                    <Text
+                      style={[
+                        s.tableCell,
+                        s.colDesc,
+                        { fontFamily: "Helvetica-Bold" },
+                      ]}
+                    >
+                      {cat} Total
+                    </Text>
+                    <Text style={[s.tableCell, s.colQty]}>{""}</Text>
+                    <Text style={[s.tableCell, s.colUnit]}>{""}</Text>
+                    <Text style={[s.tableCell, s.colUnitCost]}>{""}</Text>
+                    <Text
+                      style={[
+                        s.tableCell,
+                        s.colTotal,
+                        { fontFamily: "Helvetica-Bold" },
+                      ]}
+                    >
+                      {usd(categoryTotal)}
+                    </Text>
+                  </View>
+                )}
               </View>
             );
           })}
         </View>
 
-        {/* ── Signature section ── */}
-        <View style={s.signatureSection} wrap={false}>
-          <View style={s.signatureBlock}>
-            <Text style={s.signatureLabel}>Client Signature</Text>
-            <View style={s.signatureLine} />
-            <Text style={s.signatureCaption}>
-              {quote.client_name || "Client Name"} — Date: _______________
+        {/* ── Agreement + Signature section ──
+            We treat these as one logical block (agreement above signatures)
+            and use `minPresenceAhead` to push them to the next page if
+            there's not enough room, rather than `wrap={false}` which can
+            split unpredictably. ~140pt covers agreement + both signature
+            blocks + caption with a little breathing room. */}
+        <View minPresenceAhead={140}>
+          <View style={s.agreementSection}>
+            <Text style={s.agreementText}>
+              By signing below, the client agrees to the scope of work and
+              pricing described above. All work performed in accordance with
+              local electrical codes and regulations. Final pricing may vary
+              if site conditions differ from what was discussed.
             </Text>
           </View>
-          <View style={s.signatureBlock}>
-            <Text style={s.signatureLabel}>Estimator Signature</Text>
-            <View style={s.signatureLine} />
-            <Text style={s.signatureCaption}>
-              {estimatorName} — Date: _______________
-            </Text>
+          <View style={s.signatureSection}>
+            <View style={s.signatureBlock}>
+              <Text style={s.signatureLabel}>Client Signature</Text>
+              <View style={s.signatureLine} />
+              <Text style={s.signatureCaption}>
+                {quote.client_name || "Client Name"} — Date: _______________
+              </Text>
+            </View>
+            <View style={s.signatureBlock}>
+              <Text style={s.signatureLabel}>Estimator Signature</Text>
+              <View style={s.signatureLine} />
+              <Text style={s.signatureCaption}>
+                {estimatorName} — Date: _______________
+              </Text>
+            </View>
           </View>
         </View>
 

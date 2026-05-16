@@ -5,6 +5,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { QuoteDocument } from "@/lib/pdf/quote-document";
+import { makePdfFilename } from "@/lib/utils/pdf-filename";
 import { NextRequest } from "next/server";
 
 export async function POST(request: NextRequest) {
@@ -143,6 +144,11 @@ export async function POST(request: NextRequest) {
           client_address: quote.client_address,
           job_site_address: quote.job_site_address,
           tax_rate: quote.tax_rate ?? 0,
+          // Default to 'materials' to match the migration default. The PDF
+          // hides the tax row entirely if rate is 0 OR basis is 'none'.
+          tax_basis:
+            (quote.tax_basis as "materials" | "subtotal" | "none" | null) ??
+            "materials",
         },
         estimatorName: estimator?.full_name || "Unknown",
         lineItems: (lineItems || []).map((item) => ({
@@ -157,12 +163,19 @@ export async function POST(request: NextRequest) {
       })
     );
 
-    // Return the PDF as a binary response with appropriate headers
-    // Convert Node Buffer to Uint8Array so the Web Response constructor accepts it
+    // Return the PDF as a binary response. Filename here is what viewers
+    // that honor Content-Disposition will use (e.g., browser context-menu
+    // "Save As"). The in-modal Download button passes the SAME filename
+    // via the <a download> attribute, which is the universal fallback.
+    const filename = makePdfFilename(
+      quote.quote_number,
+      quote.client_name,
+      quote.created_at || new Date().toISOString()
+    );
     return new Response(new Uint8Array(pdfBuffer), {
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `inline; filename="Quote-${quote.quote_number}.pdf"`,
+        "Content-Disposition": `inline; filename="${filename}"`,
       },
     });
   } catch (error) {

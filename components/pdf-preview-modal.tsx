@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { makePdfFilename } from "@/lib/utils/pdf-filename";
 
 // Local types for the File System Access API. This lives in modern
 // lib.dom.d.ts but isn't reliably picked up by this project's TS config.
@@ -38,7 +39,11 @@ declare global {
 
 interface PdfPreviewModalProps {
   quoteId: string;
-  quoteNumber: string; // Used for the download filename
+  quoteNumber: string;
+  // Used (together with quoteNumber + createdAt) to build a human-readable
+  // download filename. Pass null/undefined if the quote has no client yet.
+  clientName: string | null;
+  createdAt: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -46,6 +51,8 @@ interface PdfPreviewModalProps {
 export default function PdfPreviewModal({
   quoteId,
   quoteNumber,
+  clientName,
+  createdAt,
   open,
   onOpenChange,
 }: PdfPreviewModalProps) {
@@ -102,9 +109,15 @@ export default function PdfPreviewModal({
   // Falls back to the <a download> trick for browsers that don't support
   // the API (Firefox, Safari as of 2026). Without this, Chrome/Arc just
   // silently dumped the PDF into the default Downloads folder.
+  //
+  // The suggested filename comes from makePdfFilename() so it's the same
+  // richer "Quote Q-1002 - Jane Doe - 2026-05-16.pdf" form regardless of
+  // which code path the browser takes. The Chrome PDF viewer's own
+  // download icon still ignores this — users get the better filename only
+  // when they use the Download button below.
   async function handleDownload() {
     if (!pdfUrl) return;
-    const suggestedName = `Quote-${quoteNumber}.pdf`;
+    const suggestedName = makePdfFilename(quoteNumber, clientName, createdAt);
 
     // Modern path — Chromium browsers (Chrome, Arc, Edge, Brave).
     // Calling this opens the OS-native save dialog; the promise resolves
