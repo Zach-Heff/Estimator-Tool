@@ -12,6 +12,30 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
+// Local types for the File System Access API. This lives in modern
+// lib.dom.d.ts but isn't reliably picked up by this project's TS config.
+// We declare only the bits we actually use — no need to mirror the full
+// spec just to satisfy the typechecker.
+interface FsaWritableStream {
+  write(data: Blob): Promise<void>;
+  close(): Promise<void>;
+}
+interface FsaFileHandle {
+  createWritable(): Promise<FsaWritableStream>;
+}
+interface FsaSaveOptions {
+  suggestedName?: string;
+  types?: Array<{
+    description?: string;
+    accept: Record<string, string[]>;
+  }>;
+}
+declare global {
+  interface Window {
+    showSaveFilePicker?: (options?: FsaSaveOptions) => Promise<FsaFileHandle>;
+  }
+}
+
 interface PdfPreviewModalProps {
   quoteId: string;
   quoteNumber: string; // Used for the download filename
@@ -73,12 +97,58 @@ export default function PdfPreviewModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // Trigger a file download by creating a temporary <a> element
-  function handleDownload() {
+  // Trigger a file download. Prefers the File System Access API so the
+  // user gets a native "Save As" dialog and can pick the filename + folder.
+  // Falls back to the <a download> trick for browsers that don't support
+  // the API (Firefox, Safari as of 2026). Without this, Chrome/Arc just
+  // silently dumped the PDF into the default Downloads folder.
+  async function handleDownload() {
     if (!pdfUrl) return;
+    const suggestedName = `Quote-${quoteNumber}.pdf`;
+
+    // Modern path — Chromium browsers (Chrome, Arc, Edge, Brave).
+    // Calling this opens the OS-native save dialog; the promise resolves
+    // with a handle when the user confirms, or rejects with AbortError
+    // when they cancel (which we treat as "user is done, no fallback").
+    const showSaveFilePicker =
+      typeof window !== "undefined" ? window.showSaveFilePicker : undefined;
+    if (showSaveFilePicker) {
+      try {
+        const handle = await showSaveFilePicker({
+          suggestedName,
+          types: [
+            {
+              description: "PDF file",
+              accept: { "application/pdf": [".pdf"] },
+            },
+          ],
+        });
+        const writable = await handle.createWritable();
+        // Re-read the blob from our existing object URL; fetch() against a
+        // blob: URL is synchronous-ish (no network) and gives us a Blob we
+        // can stream into the writable.
+        const blob = await (await fetch(pdfUrl)).blob();
+        await writable.write(blob);
+        await writable.close();
+        return;
+      } catch (err) {
+        // AbortError = user clicked Cancel in the save dialog. That's a
+        // valid choice — don't fall back, don't surface an error.
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        // Any other failure (permission denied, quota, etc.) — fall through
+        // to the <a download> fallback so the user still gets the file.
+        console.warn(
+          "showSaveFilePicker failed, falling back to direct download:",
+          err
+        );
+      }
+    }
+
+    // Fallback for Firefox / Safari / older browsers: anchor download.
+    // No save dialog here — browser uses its default download folder.
     const a = document.createElement("a");
     a.href = pdfUrl;
-    a.download = `Quote-${quoteNumber}.pdf`;
+    a.download = suggestedName;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -120,11 +190,27 @@ export default function PdfPreviewModal({
           )}
 
           {pdfUrl && !loading && (
-            <iframe
-              src={pdfUrl}
+            // Use <object> instead of <iframe> for embedded PDFs. Chromium's
+            // built-in PDF viewer is more reliable inside an <object>,
+            // especially when the host element is a portaled modal — iframes
+            // pointed at blob: URLs sometimes triggered an unwanted "Save As"
+            // dialog in Arc / Chrome and rendered as a blank gray box after
+            // the user dismissed it. The <object>'s children render as a
+            // graceful fallback if the browser can't show the PDF inline.
+            <object
+              data={pdfUrl}
+              type="application/pdf"
               className="h-full w-full"
-              title="Quote PDF Preview"
-            />
+              aria-label={`Quote ${quoteNumber} PDF preview`}
+            >
+              <div className="flex h-full items-center justify-center p-8 text-center">
+                <p className="text-sm text-muted-foreground">
+                  Your browser couldn&apos;t display the PDF inline.
+                  <br />
+                  Click <strong>Download PDF</strong> below to view it.
+                </p>
+              </div>
+            </object>
           )}
         </div>
 
