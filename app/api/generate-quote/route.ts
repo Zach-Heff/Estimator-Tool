@@ -342,8 +342,17 @@ export async function POST(request: NextRequest) {
 
       // Try to match materials against the contractor's price list.
       // Labor items don't get matched — labor isn't in a product catalog.
+      // We pass item.unit so the matcher can reject candidates with an
+      // incompatible unit (e.g., a per-roll catalog price vs. a per-ft
+      // line item). Without that guardrail, the matcher could replace a
+      // $1.85/ft AI estimate with a $168/roll price and multiply it by
+      // a 70ft quantity, producing a 250x pricing error.
       if (item.item_type === "material" && catalogEntries.length > 0) {
-        const match = fuzzyMatchItem(item.description, catalogEntries);
+        const match = fuzzyMatchItem(
+          item.description,
+          catalogEntries,
+          item.unit
+        );
         if (match) {
           unitCost = match.catalogItem.unit_price;
           priceSource = "contractor_list";
